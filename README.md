@@ -10,3 +10,5 @@ Household expenditures and the effective reproduction number in Japan: regressio
 "def_func_data_COVID.r": Source file for user-defined functions.
 
 "localtrend_COVID_model17.stan": the regression model in a stan file. 
+
+"data.zip": data files in csv formats.
