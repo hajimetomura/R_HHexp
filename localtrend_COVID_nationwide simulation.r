@@ -1,17 +1,6 @@
 # Simulate the effect of policy intervention by using the estimated coefficients of a linear regression for the reproduction number with mobility report data and household expenditure data.
 # Frequency: daily.
-# Use the following model.
-# Model 6: Add to model 4 coefficient restrictions so that household expenditure and mobility have always positive effects on the reproduction number.
-# Model 7: Add to model 5 coefficient restrictions so that household expenditure and mobility have always positive effects on the reproduction number.
-# Model 10: Clothing and footwear are dropped from the explanatory variables for Model 7.
-# Model 11: The error term in Model 7 is changed to AR(2) process.
-# Model 12: The error term in Model 7 has a serial correlation with shocks in a week ago.
-# Model 13: Dummy for the period before the first state of emergency.
-# Model 14: Add a dummy for the period before the first state of emergency to Model 11.
-# Model 15: Add a dummy for the period before the first state of emergency to Model 7 and remove serial correlation in error terms from Model 7.
-# Model 16: Apply the distribution of incubation periods to AR(1) error term. Also add white noises as a measurement error of R to Model 13.
-# Model 17: Modify the distribution of the initial value of unobserved infectious events to the unconditional distribution.
-# Model 18: Set real <lower=0, upper=1> rho; // AR(1) term for unobseved infectious events.
+# Model 17: Modify the distribution of the initial value of residual infectious events to the unconditional distribution.
 
 # The saved data and estimates of either model are loaded. 
 # This code loads additional data for the use of simulations.
@@ -33,7 +22,7 @@ log_dist_incub <- 0 #  Default value: 0. If = 1, use a log normal distribution b
 
 nominal_hes <- 0 # Default value: 0. If = 1, use nominal household expenditure data. If = 0, use real household expenditure data denominated by 2020 average CPI for each item.
 
-mdl_number <- 17 # Numbering of the stan model whose result is loaded. Must be 6 or 7.
+mdl_number <- 17 # Numbering of the stan model whose result is loaded.
 
 ENG <- 0 # If = 1, write labels in English.
 
@@ -63,6 +52,7 @@ setwd(wdir)
 
 library(seasonal)
 library(rstan)
+library(xtable)
 
 # Call hand-made functions.
 source("./def_func_data_COVID.R",encoding="utf-8")
@@ -336,7 +326,7 @@ for (i in 1:length(temp_date)){
   Rail_Pssgrs_d <- c(Rail_Pssgrs_d, rep(Rail_Pssgrs_m[i], temp_date[i])) # Fill all the dates in a month by the monthly average.
 }
 
-# Plots that validate to compute hypothetical 2019 google mobility data by multiplying 2020 data with the ratio between the numbers of railways passengers in 2019 and 2020.
+# Plot railways passengers and google mobility data for Feb. 15, 2020, to the year end.
 if (ENG==1){
   temp_ylab <- "Average for Jan. 2020 (or 2020/1/3-2020/2/6) = 1"
   if (plot_paper==1){
@@ -351,9 +341,8 @@ if (ENG==1){
   temp_ylab <- "2020年1月（もしくは2020/1/3-2020/2/6)平均＝1"
   temp_main_label <- "モビリティデータの比較"
 }
-#plot.ts(cbind(Rail_Pssgrs_d[(366+31+14):length(Rail_Pssgrs_d)]/Rail_Pssgrs_d[366+31+14],1+mob_var4[1:(length(Rail_Pssgrs_d)-(366+31+14)+1),1]/100),xaxt="n",xlab=temp_xlab,ylab=temp_ylab,col=1:2,main=temp_main_label)
-#temp_dates <- conv_date_format(mob_date[29-14+1:(sum(ndays_normal)-(31+28))]) # Transform the format from yyyy-mm-dd to yyyy/m/d.
-temp <- cbind(Rail_Pssgrs_d[(365+31+14+1):length(Rail_Pssgrs_d)]/Rail_Pssgrs_m[13],filter(1+mob_var4[1:(length(Rail_Pssgrs_d)-(365+31+14)),1]/100,rep(1/7,7))) # Take 7-day moving average of daily 2020 data and consruct a data matrix for a plot.
+
+temp <- cbind(Rail_Pssgrs_d[(365+31+14+1):length(Rail_Pssgrs_d)]/Rail_Pssgrs_m[13],filter(1+mob_var4[1:(length(Rail_Pssgrs_d)-(365+31+14)),1]/100,rep(1/7,7))) # Take 7-day moving average of daily 2020 data and construct a data matrix for a plot.
 matplot(temp, type="l",xaxt="n",xlab=temp_xlab,ylab=temp_ylab,lty=1,col=1:2,main=temp_main_label) # Compare the two series from February 15, 2020, which is the starting date of Google Community Mobility Report. Railway passengers are normalized by the Jan. 2020 average.
 temp_dates <- conv_date_format(mob_date[1:(sum(ndays_olympic)-(31+14))]) # Transform the format from yyyy-mm-dd to yyyy/m/d.
 axis(side=1, at=c(1,round(length(temp_dates)*c(1:5)/5)), labels=temp_dates[c(1,round(length(temp_dates)*c(1:5)/5))])
@@ -391,12 +380,8 @@ for (i in 1:length(temp_date)){
 # Convert the index into percentage changes from 1, which is the baseline level.
 mob_var4_2019 <- (temp_d - 1) * 100
 
-# Erase the element corresponding to 2019 Feb. 29.
-#mob_var4_2019 <- mob_var4_2019[-(31+29)]
-
 # Compare the mobility data created for 2019 and gooble mobility data from 2020 March 1.
 if (ENG==1){
-  #temp_xlab <- "Daily"
   temp_xlab <- "Number of days from Feb. 15, 2020 or Feb. 14, 2019"
   temp_ylab <- "Average for Jan. 2020 (or 2020/1/3-2020/2/6) = 1"
   if (plot_paper){
@@ -409,13 +394,10 @@ if (ENG==1){
   temp_ylab <- "2020年1月（もしくは2020/1/3-2020/2/6)平均＝1"
   temp_main_label <- "モビリティデータの比較"
 }
-#plot.ts(cbind(1+mob_var4_2019[(31+28+1):sum(ndays_normal)]/100,1+mob_var4[1:(sum(ndays_normal)-(31+28)),1]/100),xaxt="n",xlab=temp_xlab,ylab=temp_ylab,col=1:2,main=temp_main_label) 
-#temp_dates <- mob_date[29-14+1:(sum(ndays_normal)-(31+28))]
+
 temp_2019 <- 1+c(mob_var4_2019[(31+13+1):sum(ndays_normal)],mob_var4_2019[1:(31+13)])/100 # Construct 2019 mobility data from February 14, 2019, and connect the year-end to the beginning of 2019.
 temp <- cbind(filter(1+mob_var4[1:length(temp_2019),1]/100, rep(1/7,7)),temp_2019) # Construct a data matrix. Take 7-day centered moving average of daily 2020 data.
 matplot(temp, type="l", xlab=temp_xlab, ylab=temp_ylab, lty=1, col=1:2, main=temp_main_label) # Plot data from February 15, 2020, or February 14, 2019, because of the additional day in February 2020. 
-#temp_dates <- mob_date[1:(sum(ndays_normal)-(31+13))]
-#axis(side=1, at=c(1,round(length(temp_dates)*c(1:5)/5)), labels=temp_dates[c(1,round(length(temp_dates)*c(1:5)/5))])
 if (ENG==1){
   legend("bottomright",legend=c("transit_stations from Google for 2020-21 (7-day mov. ave.)","Hypothetical index based on 2019 railway-passenger data"),lty=1,col=1:2)
 }else{
@@ -487,7 +469,6 @@ if (mdl_number==10){
   sink()
   
   # Drop the dummy variable for December and re-run the regression for mobility in transportation.
-  #mob_OLS_rslt_3 <- lm(1+mob_var4[1:nobs_mob_OLS,1]/100 ~ H1+H2+H3+H5+TEMP, data=mob_OLS_dep) 
   mob_OLS_rslt_3 <- lm(1+mob_var4[1:nobs_mob_OLS,1]/100 ~ H1+H2+H3+H4+H5+DEC+HD+SE1+SE2, data=mob_OLS_dep)
   
   # Record the parameter estimates
@@ -499,7 +480,6 @@ if (mdl_number==10){
   # Define data table for the lm object for prediction.
   mob_OLS_dep <- data.frame(H1=c(mob_OLS_H_val[1,]), H2=c(mob_OLS_H_val[2,]), H3=c(mob_OLS_H_val[3,]), H4=c(mob_OLS_H_val[4,]), H5=c(mob_OLS_H_val[5,]), H6=c(mob_OLS_H_val[6,]), TEMP=temper_var_ave[31+14+1:nobs_mob_OLS], HUM=hum_var_ave[31+14+1:nobs_mob_OLS], DEC=D_DEC, HD=D_HD, SE1=D_SE1, SE2=D_SE2)
   
-  #mob_OLS_rslt_1 <- lm(1+mob_var4[1:nobs_mob_OLS,1]/100 ~ H1+H2+H3*DEC+H4+H5+H6+TEMP, data=mob_OLS_dep)
   mob_OLS_rslt_1 <- lm(1+mob_var4[1:nobs_mob_OLS,1]/100 ~ H1+H2+H3*DEC+H4+H5+H6+HD+SE1+SE2, data=mob_OLS_dep)
   
   # Record the parameter estimates.
@@ -508,7 +488,6 @@ if (mdl_number==10){
   sink()
   
   # Drop explanatory variables with insignificant coefficients and wrong signs and re-run the regression for mobility in transportation.
-  #mob_OLS_rslt_2 <- lm(1+mob_var4[1:nobs_mob_OLS,1]/100 ~ H1+H2+H3*DEC+H5+TEMP, data=mob_OLS_dep) 
   mob_OLS_rslt_2 <- lm(1+mob_var4[1:nobs_mob_OLS,1]/100 ~ H2+H3*DEC+H4+H5+H6+HD+SE1+SE2, data=mob_OLS_dep) 
   
   # Record the parameter estimates
@@ -517,7 +496,6 @@ if (mdl_number==10){
   sink()
   
   # Drop the dummy variable for December and re-run the regression for mobility in transportation.
-  #mob_OLS_rslt_3 <- lm(1+mob_var4[1:nobs_mob_OLS,1]/100 ~ H1+H2+H3+H5+TEMP, data=mob_OLS_dep) 
   mob_OLS_rslt_3 <- lm(1+mob_var4[1:nobs_mob_OLS,1]/100 ~ H1+H2+H3+H4+H5+H6+DEC+HD+SE1+SE2, data=mob_OLS_dep) 
   
   # Record the parameter estimates
@@ -636,8 +614,8 @@ if (ENG==1){
 ms <- rstan::extract(fit)
 
 # Drop burnins.
-niter <- length(ms[[1]]) # Number of mcmc samples. The first element of mc (gama) is a vector.
-for (i in 1:(length(ms)-1)){ # The last element of ms is the log likelihood time (-1). 
+niter <- length(ms[[1]]) # Number of mcmc samples. The first element of ms (gama) is a vector.
+for (i in 1:(length(ms)-1)){ # The last element of ms is the log likelihood times (-1). 
   if (length(dim(ms[[i]]))==1){
     ms[[i]] <-ms[[i]][(round(niter/2)+1):niter] # Drop the burn-ins.
   }else if(length(dim(ms[[i]]))==2){
@@ -777,12 +755,10 @@ for (i in 1:dim(H_expvals_base)[1]){
     temp_xlab <- "Number of days from Feb. 15, 2020 or Feb. 14, 2019"
     #temp_ylab <- "100 yen (per household per day, in 2020 real value, 7-day mov. ave.）"
     temp_ylab <- "100 yen (per household per day, in 2020 real value）"
-    #temp_main_label=paste0(hes_var_nm_2019_ENG[i],"(7-day moving ave.)")
     temp_main_label=hes_var_nm_2019_ENG[i]
   }else{
     temp_xlab <- "2020年2月16日（もしくは2019年2月15日）からの日数"
     temp_ylab <- "百円（一世帯・一日当たり、2020年水準実質値、7日間移動平均）"
-    #temp_main_label=paste0(hes_var_nm_2019[i],"(7日間加重平均）")
     temp_main_label=hes_var_nm_2019[i]
   }
   matplot(temp, type="l",lty=1, col=1:2, xlab=temp_xlab, ylab=temp_ylab, main=temp_main_label, cex.main=cex_val, cex.axis=cex_val_axis, cex.lab=cex_val) # Plot H_expvals for 365 days from 2020 February 16 or 2019 February 15.
@@ -840,15 +816,263 @@ if (ENG==1){
 }
 plot(-comp_effect_2020_2019[dim(H_expvals_base)[1]+1,1:(length(M_trans_base)-13-6)], type="l",xlab=temp_xlab, ylab=temp_ylab, main=temp_main_label)
 
+
+
+############### Compute fitted reproduction numbers for the sample period beyond the estimation period. ###############################3
+
+# Define the length of the sample period beyond the estimation period for dependent variables.
+# Because the weekly moving average includes the current data, only six is subtracted. 14 is the number of lags for explanatory variables.
+prdctn_end <- dim(H_expvals_all)[2] - (which(hes_var_date_all==hes_end_date_estimation)+2-6-14) + 1 
+
+# Define time dummies. This part must be updated manually.
+D_NY_pred <- rep(0,prdctn_end)
+D_SE1_pred <- rep(0,prdctn_end)
+#D_SE2_pred <- c(rep(1,6+14+27+21),rep(0,prdctn_end-(6+14+27+21))) # The estimation period ends during the second state of emergency, which will end at March 21, 2021. 6 + 14 days up to February 1, 27 is the remaining days in February 2021.
+D_SE2_pred <- rep(0,prdctn_end)
+D_pre_SE1_pred <- rep(0,prdctn_end)
+
+# The fitted values of R within the estimation period end at one day after the sample period for dependent variables in the estimation.
+# Construct explanatory variables for out-of-sample predictions from 19 days before the end of the last month of the estimation period, so that the first reproduction number to simulate is on the 2nd date of the next month.
+# Convert the format of mob_date to make it consistent with the format of hes_var_date_all.
+# Set zeros for D_NY, as the available sample period does not include the new year period.
+temp <- R_simu(ms_R = ms, H_expvals = H_expvals_all[,(which(hes_var_date_all==hes_end_date_estimation)+2-6-14)+0:(prdctn_end-1)], M_trans = mob_var4[(which(conv_date_format(mob_date)==weath_end_date_estimation)+2-6-14)+0:(prdctn_end-1), 1], W_abs_hum = W_abs_hum_all[(which(weath_date_all==weath_end_date_estimation)+2-6-14)+0:(prdctn_end-1)], dist_incub = dist_incub, D_NY = D_NY_pred, D_SE1 = D_SE1_pred, D_SE2 = D_SE2_pred, D_pre_SE1 = D_pre_SE1_pred) 
+
+# Extract the mcmc samples of the fitted reproduction number for the sample period beyond the estimation period.
+R_fitted_pred <- temp$R
+
+# Extract the mcmc samples of the decomposition of fitted reproduction number for the sample period beyond the estimation period.
+R_fitted_pred_decomp <- temp$comp_effect
+
+# Compute the mean and the percentile values of time-varying parameters in vectors.
+
+name_list<-c("R_fitted_pred") # Variable name in the stan file.
+
+for (i in 1:length(name_list)){
+  
+  eval(parse(text=paste0("temp <- Extract_mean_ptl(",name_list[i],", ptl=c(0.025,0.975))")))
+  eval(parse(text=paste0(name_list[i],"_pm <- temp[[1]]"))) # posterior mean
+  eval(parse(text=paste0(name_list[i],"_025 <- temp[[2]]"))) # 5% percentile
+  eval(parse(text=paste0(name_list[i],"_975 <- temp[[3]]"))) # 97.5% percentile
+}
+
+
+# Define the end of the available sample period.
+weath_end_date_allsmpl <- paste0(hes_end_all[1],"/",hes_end_all[2],"/",ndays_normal[hes_end_all[2]])
+
+# Define the labels for dates starting from 2020 March 6, exclusive, to the end of the available sample period. The last date of fitted values of R is one day after the end of the available sample period.
+date_label_pred <- mob_date[(29-14+6):(which(conv_date_format(mob_date)==weath_end_date_allsmpl)+1)]
+
+# Find the location of the period of the state of emergency.
+SE_pred <- c(which(date_label_pred=="2020-04-07"),which(date_label_pred=="2020-05-25"),which(date_label_pred=="2021-01-07"),which(date_label_pred=="2021-03-21"),which(date_label_pred=="2021-04-25")) 
+
+# Define the dependent variable. 
+DEP_pred <- R[6:(which(R_date==weath_end_date_allsmpl)+1)] # R_var starts from 2020 March 1. Set the start date to 2020 March 6. R_date has the same format as weath_date. The last date of fitted values of R is one day after the end of the available sample period.
+
+# Extend R_fitted_pred and Fitted_R to make their lengths identical. Fulfill NAs into the estimation period and the sample period after the estimation period, respectively.
+# The posterior mean and 95% credible interval for the fitted reproduction number for the estimation period.
+Fitted_R_ext_pm <- c(Fitted_R_pm, R_fitted_pred_pm*NA)
+Fitted_R_ext_025 <- c(Fitted_R_025, R_fitted_pred_025*NA) 
+Fitted_R_ext_975 <- c(Fitted_R_975, R_fitted_pred_975*NA)
+# The posterior mean and 95% credible interval for the fitted reproduction number after the estimation period.
+R_fitted_pred_pm <- c(Fitted_R_pm*NA, R_fitted_pred_pm)
+R_fitted_pred_025 <- c(Fitted_R_025*NA, R_fitted_pred_025) 
+R_fitted_pred_975 <- c(Fitted_R_975*NA, R_fitted_pred_975)
+
+
+# Plot the fitted values of the reproduction number.
+temp_nl2 <- c("Fitted_R_ext")
+temp_nl <- c("R_fitted_pred")
+for (i in 1:(length(temp_nl))){
+  eval(parse(text=paste0("temp_nl_with_CI2 <- c(\"",temp_nl2[i],"_pm, ", temp_nl2[i],"_025, ",temp_nl2[i],"_975\")"))) # Define character names for the posterior mean and 2.5% and 97.5% percentiles.
+  eval(parse(text=paste0("temp <- cbind(",temp_nl_with_CI2,")"))) # Create a data table for a plot of observed data and estimated parameters.
+  eval(parse(text=paste0("temp_nl_with_CI <- c(\"",temp_nl[i],"_pm, ", temp_nl[i],"_025, ",temp_nl[i],"_975\")"))) # Define character names for the posterior mean and 2.5% and 97.5% percentiles.
+  eval(parse(text=paste0("temp <- cbind(temp,",temp_nl_with_CI,")"))) # Create a data table for a plot of observed data and estimated parameters.
+}
+if (log_R == 1){
+  temp_ylab <- "Log" # R is the log of the reproduction number.
+}else{
+  temp_ylab <- "Level" # R is the level of the reproduction number.
+}
+if (ENG==1){
+  if (plot_paper==1){
+    temp_main_label<- ""
+  }else{
+    temp_main_label<- "Effective reproduction number (R)"
+  }
+}else{
+  temp_main_label<- "実効再生産数 (R)"
+}
+
+matplot(cbind(DEP_pred, temp), type="l", col=c(1,2,2,2,3,3,3), lty=c(1,1,2,2,1,2,2), xaxt="n", xlab=time_label, ylab=temp_ylab, main=temp_main_label)
+axis(side=1, at=c(1,round(nrow(temp)*c(1:5)/5)), labels=conv_date_format(date_label_pred[c(1,round(nrow(temp)*c(1:5)/5))]))
+if (log_R == 1){
+  abline(h=0,lty=3) # h=0 because R is the log of the reproduction number.
+}else{
+  abline(h=1,lty=3) # h=1 because R is the level of the reproduction number.
+}
+for (j in 1:length(SE_pred)){
+  abline(v=SE_pred[j],lty=5)
+}  
+if (ENG==1){
+  legend("topright",legend=c("Observed R", "Fitted R", "Out-of-sample prediction of R"), lty=c(1,1,1), col=c(1,2,3))
+}else{
+  legend("topright",legend=c("観測値", "回帰式のfitted valueの事後平均", "推計期間以降のRの予測値"), lty=c(1,1,1), col=c(1,2,3))
+}
+
+######## Plot the level decomposition of the fitted value of the reproduction number for the prediction period. ######
+
+# Define the labels for dates starting from one day after the end of the estimation period to the end of the available sample period. The last date of fitted values of R is one day after the end of the available sample period.
+date_label_pred_decomp <- mob_date[(which(conv_date_format(mob_date)==weath_end_date_estimation)+2):(which(conv_date_format(mob_date)==weath_end_date_allsmpl)+1)]
+# Find the location of the period of the state of emergency.
+SE_pred_decomp <- c(which(date_label_pred_decomp=="2020-04-07"),which(date_label_pred_decomp=="2020-05-25"),which(date_label_pred_decomp=="2021-01-07"),which(date_label_pred_decomp=="2021-03-21"),which(date_label_pred_decomp=="2021-04-25")) 
+
+
+# Plot each component of the decomposition, including both effects via no coefficient dummies and the coefficient dummies of absolute humidity, in one diagram.
+# Define the name of each component of decomposition.
+if (ENG==1){
+  temp_nl <- c("Absolute humidity", "Eating out for meal", "Cafe", "Bar", "Lodging", "Domestic travel packages", "Clothing and footwear", "Mobility in transportation") 
+}else{
+  temp_nl <- c("絶対湿度", "食事代", "喫茶代", "飲酒代", "宿泊料", "国内パック旅行費", "被服及び履物", "人出（公共交通）")
+}  
+# Absolute humidity dummies, which are in the second row of the matrix on the right-hand side. Drop the constant term in the first row, because it does not change.
+temp <- R_fitted_pred_decomp[2,]
+# Terms that include the absolute humidity coefficient dummies. 
+for (i in 1:(length(temp_nl)-1)){
+  # Sum the three components for each variable: basic coefficients without coefficient dummies, absolute humidity coefficient dummies, state of emergency coefficient dummies.
+  temp <- rbind(temp, R_fitted_pred_decomp[2+i,] + R_fitted_pred_decomp[2+i+(length(temp_nl)-1),] + R_fitted_pred_decomp[2+i+(length(temp_nl)-1)*2,])
+}
+# Plot the figures.
+for (i in 1:2){
+  # First plot: level of each component.
+  # Second plot: Index of each component which is normalized to 0 for the first value.  
+
+  temp <- t(temp) # Transpose the matrix to plot time series in matplot for the first iteration. Retranspose in the second iteration, which works fine.
+
+  # Set the title of the diagram.
+  if (ENG==1){
+    if (i ==1){
+      if (log_R == 1){
+        temp_ylab <- "Components of log R"
+        temp_main_title <- "Decomposition of predicted log R"
+      }else{
+        temp_ylab <- "Components of R"
+        temp_main_title <- "Decomposition of predicted R"
+      }
+    }else{
+      if (log_R == 1){
+        temp_ylab <- "Contribution to a change in log R from 2021 Feb. 2 (2021 Feb. 2 = 0)"
+        temp_main_title <- "Decomposition of predicted log R"
+      }else{
+        temp_ylab <- "Contribution to a change in R from 2021 Feb. 2 (2021 Feb. 2 = 0)"
+        temp_main_title <- "Decomposition of predicted R"
+      }
+      temp <- apply(temp,1,function(x){x-x[1]}) 
+    }
+  }else{
+    if (i ==1){
+      if (log_R == 1){
+        temp_ylab <- "Log Rの構成要素"
+        temp_main_title <- "Log Rの予測値の要因分解"
+      }else{
+        temp_ylab <- "Rの構成要素"
+        temp_main_title <- "Rの予測値の要因分解"
+      }
+    }else{
+      if (log_R == 1){
+        temp_ylab <- "2021年2月2日からのlog Rの変化分（2021年2月2日=0）"
+        temp_main_title <- "Log Rの予測値の要因分解"
+      }else{
+        temp_ylab <- "2021年2月2日からのRの変化分（2021年2月2日=0）"
+        temp_main_title <- "Rの予測値の要因分解"
+      }
+      temp <- apply(temp,1,function(x){x-x[1]}) 
+    }
+    
+  }
+  
+  # Plot the components of decomposition in one diagram.
+  matplot(temp, type="l", col=1:length(temp_nl), lty=1, xaxt="n", xlab=time_label, ylab=temp_ylab, main=temp_main_title, ylim=c(min(temp)-0.01, max(temp)+0.01))
+  axis(side=1, at=c(1,round(nrow(temp)*c(1:5)/5)), labels=conv_date_format(date_label_pred_decomp[c(1,round(nrow(temp)*c(1:5)/5))]))
+  if (log_R == 1){
+    abline(h=0,lty=3) # h=0 because R is the log of the reproduction number.
+  }else{
+    abline(h=1,lty=3) # h=1 because R is the level of the reproduction number.
+  }
+  for (j in 1:length(SE_pred_decomp)){
+    abline(v=SE_pred_decomp[j],lty=5)
+  }  
+  legend("topleft",legend=temp_nl,col=1:length(temp_nl),lty=1)
+
+}
+
+
+# Define the name of each component of decomposition.
+if (ENG==1){
+  temp_nl <- c("Eating out for meal", "Cafe", "Bar", "Lodging", "Domestic travel packages", "Clothing and footwear", "Mobility in transportation") 
+  temp_nl2 <- c("benchmark coef.", "absolute humidity coef. dummies","state of emercency coef. dummies")
+}else{
+  temp_nl <- c("食事代", "喫茶代", "飲酒代", "宿泊料", "国内パック旅行費", "被服及び履物", "人出（公共交通）")
+  temp_nl2 <- c("基本係数","絶対湿度係数ダミー","緊急事態宣言係数ダミー")
+}  
+
+
+# Compute the difference from the value in the first period for each variable.
+temp <- apply(R_fitted_pred_decomp,1,function(x){x-x[1]}) # Output is transposed because each row vector is recognized as a column vector after the operation, which is the default format of a vector.
+
+# Plot the effects via no-dummy coefficients and absolute humidity coefficient dummies separately.
+for (i in 1:3){
+  # First plot: No-dummy coefficients.
+  # Second plot: Absolute humidity coefficient dummies.
+  # Third plot: State of emergencies coefficient dummies (which are set to zeros).
+  
+  # The label for the vertical axis and the main title of plots.
+  if (ENG==1){
+    if (log_R == 1){
+      temp_ylab <- "Contribution to a change in log R from 2021 Feb. 2 (2021 Feb. 2 = 0)"
+      temp_main_title <- paste0("Decomposition of predicted log R (", temp_nl2[i],")")
+    }else{
+      temp_ylab <- "Contribution to a change in R from 2021 Feb. 2 (2021 Feb. 2 = 0)"
+      temp_main_title <- paste0("Decomposition of predicted R (", temp_nl2[i],")")
+    }
+  }else{
+    if (log_R == 1){
+      temp_ylab <- "2021年2月2日からのlog Rの変化分（2021年2月2日=0）"
+      temp_main_title <- paste0("Log Rの予測値の要因分解（", temp_nl2[i],"）")
+    }else{
+      temp_ylab <- "2021年2月2日からのRの変化分（2021年2月2日=0）"
+      temp_main_title <- paste0("Rの予測値の要因分解（", temp_nl2[i],"）")
+    }
+  }
+
+  # Plot each of the effects via no-dummy coefficients and absolute humidity coefficient dummies separately. By  col=1+1:length(temp_nl), use the same color for each series as the previous figure on the total contribution from each explanatory variable.  
+  matplot(temp[,2+length(temp_nl)*(i-1)+1:length(temp_nl)], type="l", col=1+1:length(temp_nl), lty=1, xaxt="n", xlab=time_label, ylab=temp_ylab, main=temp_main_title, ylim=c(min(temp)-0.01, max(temp)+0.01))
+  axis(side=1, at=c(1,round(nrow(temp)*c(1:5)/5)), labels=conv_date_format(date_label_pred_decomp[c(1,round(nrow(temp)*c(1:5)/5))]))
+  if (log_R == 1){
+    abline(h=0,lty=3) # h=0 because R is the log of the reproduction number.
+  }else{
+    abline(h=1,lty=3) # h=1 because R is the level of the reproduction number.
+  }
+  for (j in 1:length(SE_pred_decomp)){
+    abline(v=SE_pred_decomp[j],lty=5)
+  }  
+  legend("topleft",legend=temp_nl,col=1+1:length(temp_nl),lty=1)
+  
+  # Save the data table as .csv
+  temp_save <- temp[,2+length(temp_nl)*(i-1)+1:length(temp_nl)] # Data table.
+  rownames(temp_save) <- conv_date_format(date_label_pred_decomp) # Define dates as row labels.
+  colnames(temp_save) <- temp_nl # Define variable names as column labels.
+  eval(parse(text=paste0("write.csv(temp_save,file=\"fourthwavedecomp_",i,".csv\")")))
+  
+}
+
 ### Close the pdf file.
 dev.off()
 
 
-############## Simulate the reproduction number with hypothetical interventions. ##############################
+
+############## Set common variables and parameters for the simulation of the reproduction number with hypothetical interventions. ##############################
 
 # Compute the average expenditure over various periods.
-H_exp_ave_2020_9to11 <- apply(H_expvals[,which(hes_var_date=="2020-9-1"):which(hes_var_date=="2020-11-30")],1,mean) #for 2020 Sep-Nov
-H_exp_ave_2020_betweenSEGOTO <- apply(H_expvals[,which(hes_var_date=="2020-5-26"):which(hes_var_date=="2020-7-21")],1,mean) #for the period between the end of the first state of emergeny and the beginning of the GO-TO-TRAVEL period.
 H_exp_ave_2019 <- apply(hes_var_2019_real,1,mean) #for the whole year.
 
 # Construct weather data for simulation. W_abs_hum starts from 2020 Jan. 1. abs_hum_simu is set to start from 2020 February 15, i.e., 14 days before 2020 Feb. 29.
@@ -865,37 +1089,46 @@ if (length(weath_date) < sum(ndays_olympic)+31+28+3){
   hum_base <- hum_var_ave[(31+15):which(Weath_date==2021/3/3)]
 }
 
-# Define the labels for dates starting from 2020 February 15, exclusive, to 366 + 13 (i.e., 14 lags for incubations - 1 lag for R) + 6 (7 days average for R - 1 for the current day) days later.
+# Define the labels for dates starting from 2020 February 15, exclusive, to 366 + 13 (i.e., 14 lags for incubation - 1 lag for R) + 6 (7 days average for R - 1 for the current day) days later.
 date_label_simu_mob <- mob_date[1:dim(H_expvals_simu_2019)[2]] # mob_date starts from February 15.
 
 # Find the location of the period of the state of emergency.
 SE_simu_mob <- c(which(date_label_simu_mob=="2020-04-07"),which(date_label_simu_mob=="2020-05-25"),which(date_label_simu_mob=="2021-01-07"),which(date_label_simu_mob=="2021-03-21")) 
 
 # Set the upper limit on mobility in terms of percentage points to the benchmark date. 
-#sim_mob_perc <- c(Inf,-10,-20,-30,-40,-50) # "Inf" means no restriction.
 sim_mob_perc <- c(Inf) # "Inf" means no restriction.
 
 # Set the fraction of revenue for cafe and drink to curb based on 2019 average revenue in 2020 prices for each iteration.
 sim_revn_frac <- c(0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,1)
 
 # Set the value of the restriction on cafe and drink to draw in a plot.
-sim_revn_frac_plot <- list(c(1),c(1),c(1),c(0.85),c(0.9),c(0.9))
+sim_revn_frac_plot <- list(c(1),c(1),c(0.8),c(0.7),c(0.9),c(0.9),c(0.9),c(0.9))
 
+
+# Set the first and last date of each simulation period to compute the average R.
+def_sim_dates <- rbind(c("2020-07-01","2020-10-31"),c("2020-07-01","2020-11-30"),c("2020-07-01","2020-12-31"))
+
+
+############## Simulate the reproduction number with hypothetical interventions for the year. ##############################
 
 #### Specify simulations to run. 
 # flag_simu: Specify the type of simulation.
 # 1st element: Endogenous (1) or exogenous mobility (0). 
 # 2th element: Exogenous restriction on mobility (1) or not (0).
 # 3nd element: Special treatment of holidays (golden weeks, Obon, the new year period) (1) or not (0).
-# 4rd element: Regular restriction on cafe and drink (0) or eating out in general (1).
+# 4rd element: Regular restriction on drink (0) or cafe and drink (1).
 # 5th element: Restriction on Domestic travel packages (1) or not (0).
 
 flag_simu <- rbind(c(0,0,0,0,0),
                    c(1,0,0,0,0),
                    c(0,0,0,0,1),
                    c(1,0,0,0,1),
-                   c(0,1,0,0,1),
-                   c(1,1,0,0,1))
+                   c(0,0,0,1,0),
+                   c(1,0,0,1,0),
+                   c(0,0,0,1,1),
+                   c(1,0,0,1,1))
+                   #c(0,1,0,0,1),
+                   #c(1,1,0,0,1))
                    #c(1,1,1,0,1),
                    #c(1,1,1,1,1))
 
@@ -908,10 +1141,10 @@ for (s in 1:dim(flag_simu)[1]){
   eval(parse(text=paste0("pdf(paste0(\"simu",s,"_reformed_data_model",mdl_number,"_ENG",as.logical(ENG),"_",R_sfx,".pdf\"), family=\"Japan1GothicBBB\")")))
 
   # Initialize a matrix to save the posterior mean, 2.5% percentile, and 97.5% percentile of the annual mean of R.
-  if (flag_simu[s,2] == 1){
-    mean_R_pm <- matrix(NA, nr=length(sim_mob_perc), nc=length(sim_revn_frac)*3) # Rows: restrictions on mobility.
+  if (flag_simu[s,2]==1){
+    mean_R_pm <- matrix(NA, nr=length(sim_mob_perc)*nrow(def_sim_dates), nc=length(sim_revn_frac)*3) # Rows: restrictions on mobility.
   }else{
-    mean_R_pm <- rep(NA, length(sim_revn_frac)*3)
+    mean_R_pm <- matrix(NA, nr=nrow(def_sim_dates), nc=length(sim_revn_frac)*3) # Rows: restrictions on mobility.
   }
 
   # Initialize a list to hypothetical household expenditure.
@@ -932,14 +1165,16 @@ for (s in 1:dim(flag_simu)[1]){
       # Initialize household expenditure and mobility data for simulation.
       H_expvals_simu_intv <- H_expvals_simu_2019
       
-      # Insert household expenditure for cafe and drink intervention.
-      H_expvals_simu_intv[2,] <- H_expvals_simu_2019[2,] * (1 - sim_revn_frac[j])  
-      H_expvals_simu_intv[3,] <- H_expvals_simu_2019[3,] * (1 - sim_revn_frac[j])  
+      # Insert household expenditure for drink intervention.
+      #H_expvals_simu_intv[2,] <- H_expvals_simu_2019[2,] * (1 - sim_revn_frac[j])  #cafe
+      H_expvals_simu_intv[3,] <- H_expvals_simu_2019[3,] * (1 - sim_revn_frac[j])  # drink
       
       
       if (flag_simu[s,4]==1){
         # Insert household expenditure for eating-out intervention.
-        H_expvals_simu_intv[1,] <- H_expvals_simu_2019[1,] * (1 - sim_revn_frac[j])  
+        # H_expvals_simu_intv[1,] <- H_expvals_simu_2019[1,] * (1 - sim_revn_frac[j]) # Eating out for meals 
+        # Insert household expenditure for cafe intervention.
+        H_expvals_simu_intv[2,] <- H_expvals_simu_2019[2,] * (1 - sim_revn_frac[j])  #cafe
       }
       
       
@@ -1044,17 +1279,19 @@ for (s in 1:dim(flag_simu)[1]){
       temp_hes_intv[[j]] <- H_expvals_simu_intv
       
       # Compute the mean, the 2.5% percentile, and 97.5% percentile of the mean of R over the simulation period.
-      # mcmc samples are on the rows.
-      temp_mean_R <- apply(temp_R,1,mean)
+      # Iterate for different periods to compute the average R.
+      for (v in 1:nrow(def_sim_dates)){
+        
+        # Set the locations of elements for the simulation period.
+        sim_period <- which(date_label_simu==def_sim_dates[v,1]):which(date_label_simu==def_sim_dates[v,2])
       
-      if (flag_simu[s,2] == 1){
-        # Store the posterior mean, 33% percentile, and 66% percentile of the annual mean simulated R over the simulation period.
-        mean_R_pm[k,(j-1)*3+1:3] <- c(mean(temp_mean_R), quantile(temp_mean_R,c(0.025,0.975)))
-      }else{
-        # Store the posterior mean, 33% percentile, and 66% percentile of the annual mean simulated R over the simulation period.
-        mean_R_pm[(j-1)*3+1:3] <- c(mean(temp_mean_R), quantile(temp_mean_R,c(0.025,0.975)))
-      }    
+        # mcmc samples are on the rows.
+        temp_mean_R <- apply(temp_R[,sim_period],1,mean)
       
+        # Store the posterior mean, 33% percentile, and 66% percentile of the annual mean simulated R over the simulation period.
+        mean_R_pm[(k-1)*length(sim_mob_perc)+v,(j-1)*3+1:3] <- c(mean(temp_mean_R), quantile(temp_mean_R,c(0.025,0.975)))
+
+      }
     }
     
     
@@ -1103,15 +1340,15 @@ for (s in 1:dim(flag_simu)[1]){
     
     if(flag_simu[s,4]==1){
       if (ENG==1){
-          temp_ml_4 <- "All eating out"
-        }else{
-          temp_ml_4 <- "外食一般制限"
-        }
+          temp_ml_4 <- "Only cafe & drink"
+      }else{
+          temp_ml_4 <- "喫茶・飲酒制限"
+      }
     }else{
       if (ENG==1){
-          temp_ml_4 <- "Only cafe & drink"
+          temp_ml_4 <- "Only drink"
         }else{
-          temp_ml_4 <- "喫茶・飲酒制限"
+          temp_ml_4 <- "飲酒制限"
         }
     }
     
@@ -1119,7 +1356,7 @@ for (s in 1:dim(flag_simu)[1]){
       if (ENG==1){
         temp_ml_5 <- "Reduced travel"
       }else{
-        temp_ml_5 <- "旅行制限有"
+        temp_ml_5 <- "国内パック旅行自粛有"
       }
     }else{
       if (ENG==1){
@@ -1137,19 +1374,18 @@ for (s in 1:dim(flag_simu)[1]){
       }
     }
     if (ENG==1 & plot_paper == 1){
-      temp_main_label <- "Effective reproduction number" # The main title for plots in the paper.
+      temp_main_label <- "Effective reproduction number (R)" # The main title for plots in the paper.
     }else{
       temp_main_label <- paste0(temp_main_label,collapse=", ")
     }
 
     # Main label for mobility.
-    # temp_main_label_mob <- temp_ml_1 
-    # if (is.null(temp_ml_2)==0){
-    #   temp_main_label_mob <- c(temp_main_label_mob, temp_ml_2)
-    # }
-    # temp_main_label_mob <- paste0(c(temp_main_label_mob,paste0(" (",temp_ml_4,")")),collapse=",")
-    if (ENG==1 & plot_paper == 1){
-      temp_main_label_mob <- "Mobility in public transportation" # Only show the data label for plots in the paper.
+    if (ENG==1){
+      if (plot_paper == 1 && flag_simu[s,1]==0){
+        temp_main_label_mob <- "Mobility in public transportation" # Only show the data label for plots in the paper.
+      }else{
+        temp_main_label_mob <- "Mobility in public transportation" # Only show the data label for plots in the paper.
+      }
     }else{
       temp_main_label_mob <- temp_main_label # Show simulation details for slides in Japanese.
     }
@@ -1168,10 +1404,14 @@ for (s in 1:dim(flag_simu)[1]){
     temp_legend_rest_rate <- NULL
     for (i in 1:length(temp_pick_plot)){
       if (ENG==1){
-        #temp_legend_rest_rate <- c(temp_legend_rest_rate, ", \"", temp_pick_plot[i]*100, "% reduction of cafe and bar consumption\"")
-        temp_legend_rest_rate <- c(temp_legend_rest_rate, ", \"Hypothetical data with ", temp_pick_plot[i]*100, "% reduction of cafe and bar consumption\"")
+        if (plot_paper==1){
+          temp_legend_rest_rate <- c(temp_legend_rest_rate, ", \"Hypothetical values\"")
+        }else{
+          #temp_legend_rest_rate <- c(temp_legend_rest_rate, ", \"", temp_pick_plot[i]*100, "% reduction of cafe and bar consumption\"")
+          temp_legend_rest_rate <- c(temp_legend_rest_rate, ", \"Hypothetical data with ", temp_pick_plot[i]*100, "% reduction of cafe and bar consumption\"")
+        }
       }else{
-        temp_legend_rest_rate <- c(temp_legend_rest_rate, ", \"タイトル()内項目を対2019年比で", temp_pick_plot[i]*100,"%削減した場合\"")
+        temp_legend_rest_rate <- c(temp_legend_rest_rate, ", \"介入対象を対2019年比で", temp_pick_plot[i]*100,"%削減した場合\"")
       }
     }  
 
@@ -1216,36 +1456,45 @@ for (s in 1:dim(flag_simu)[1]){
       eval(parse(text=paste0(temp_legend, collapse=""))) # Add legends to the plot.
     }
     
-    # Create a data table to plot simulated series of mobility with mobility data in 2020.
-    temp <- 1+mob_var4[1:dim(temp_mob_rslt)[1],1]/100 # Create a data table for a plot of observed data and estimated parameters.
+    # Create a data table to plot simulated series of mobility with mobility data in 2020 and 2019.
+    temp <- 1+mob_var4[1:dim(temp_mob_rslt)[1],1]/100 # Create a data table for a plot of observed data and estimated parameters. The first column is 2020-2021 data.
     for (i in 1:length(temp_pick_plot)){
-      temp <- cbind(temp, temp_mob_rslt[,c(which(sim_revn_frac==temp_pick_plot[i]))])
+      temp <- cbind(temp, temp_mob_rslt[,c(which(sim_revn_frac==temp_pick_plot[i]))]) # Add data of restricted mobility.
+    }
+    if (ENG!=1 || plot_paper!=1){
+      temp <- cbind(temp, 1+M_trans_simu_2019[1:dim(temp_mob_rslt)[1]]/100) # Create a data table for hypothetical data based on 2019 data.
     }
     temp <- apply(temp,2,filter,rep(1/7,7)) # Take centered 7-day moving average.
     # Create a y-axis label for the plot of R.
     if (ENG==1){
-      #temp_ylab <- "Average for Jan. 2020 (or 2020/1/3-2020/2/6) = 1"
       temp_ylab <- "Average for 2020/1/3-2020/2/6 = 1"
     }else{
-      #temp_ylab <- "2020年1月（もしくは2020/1/3-2020/2/6)平均＝1"
       temp_ylab <- "2020/1/3-2020/2/6平均＝1、7日間移動平均"
     }
     # Plot the simulated series of mobility with mobility data in 2020.
     if (flag_simu[s,1]==1){
       # Endogenous mobility, which is affected by restrictions on eating out.
-      matplot(temp, type="l", col=c(1,3,4,5), lty=c(1,1,1,1), xaxt="n", xlab=time_label, ylab=temp_ylab, main=temp_main_label_mob)
+      matplot(temp, type="l", col=c(1,3,2,5), lty=c(1,1,1,1), xaxt="n", xlab=time_label, ylab=temp_ylab, main=temp_main_label_mob)
       if (ENG==1){
-        temp_legend <- c("legend(\"topright\",legend=c(\"transit_stations from Google for 2020-2021\"", temp_legend_rest_rate, "), lty=1, col=c(1,3,4,5))")
+        if (plot_paper==1){
+          temp_legend <- c("legend(\"topright\",legend=c(\"transit_stations from Google for 2020-2021\"", temp_legend_rest_rate, "), lty=1, col=c(1,3,2,5))")
+        }else{
+          temp_legend <- c("legend(\"topright\",legend=c(\"transit_stations from Google for 2020-2021\"", temp_legend_rest_rate, ",\"Hypothetical 2019 railway-passenger data\"), lty=1, col=c(1,3,2,5))")
+        }
       }else{
-        temp_legend <- c("legend(\"topright\",legend=c(\"2020年以降のグーグルデータ\"", temp_legend_rest_rate, "), lty=1, col=c(1,3,4,5))")
+        temp_legend <- c("legend(\"topright\",legend=c(\"2020年以降のグーグルデータ\"", temp_legend_rest_rate, ",\"2019年鉄道旅客人数\"), lty=1, col=c(1,3,2,5))")
       }
     }else{
-      # Exdogenous mobility, which is not affected by restrictions on eating out.
-      matplot(temp, type="l", col=c(1,2), lty=1, xaxt="n", xlab=time_label, ylab=temp_ylab, main=temp_main_label_mob)
+      # Exogenous mobility, which is not affected by restrictions on eating out.
+      matplot(temp, type="l", col=c(1,3,2), lty=1, xaxt="n", xlab=time_label, ylab=temp_ylab, main=temp_main_label_mob)
       if (ENG==1){
-        temp_legend <- "legend(\"topright\",legend=c(\"transit_stations from Google for 2020-2021\", \"Hypothetical value\"), lty=1, col=c(1,2))"
+        if (plot_paper==1){
+          temp_legend <- "legend(\"topright\",legend=c(\"2020-2021 data\", \"Hypothetical values\"), lty=1, col=c(1,3))"
+        }else{
+          temp_legend <- c("legend(\"topright\",legend=c(\"transit_stations from Google for 2020-2021\", \"Hypothetical values\",\"Hypothetical 2019 railway-passenger data\"), lty=1, col=c(1,3,2))")
+        }
       }else{
-        temp_legend <- "legend(\"topright\",legend=c(\"2020年以降のグーグルデータ\", \"仮想値\"), lty=1, col=c(1,2))"
+        temp_legend <- "legend(\"topright\",legend=c(\"2020年以降のグーグルデータ\", \"仮想値\",\"2019年鉄道旅客人数\"), lty=1, col=c(1,2,3))"
       }
     }
     eval(parse(text=paste0(temp_legend, collapse=""))) # Add legends to the plot.
@@ -1259,16 +1508,16 @@ for (s in 1:dim(flag_simu)[1]){
     # Plot the simulated series of household expenditures with the values in 2020.
     if (k ==1){ # The hypothetical values of household expenditures do not depend on restriction on mobility. So only plot data for the first value of mobility restriction.
       for (i in 1:dim(H_expvals_base)[1]){
-        temp <- NULL # Initialize the matrix to contain the same type of simulated household expenditure for different restriction level. 
+        temp <- c(H_expvals_base[i,],rep(NA,dim(temp)[1]-dim(H_expvals_base)[2])) # Plot 2020-2021 data. 
         for (j in 1:length(temp_pick_plot)){
-          #temp <- cbind(temp, temp_hes_intv[[which(sim_revn_frac==temp_pick_plot[j])]][i,1:dim(H_expvals_base)[2]])
-          temp <- cbind(temp, temp_hes_intv[[which(sim_revn_frac==temp_pick_plot[j])]][i,])
+          temp <- cbind(temp, temp_hes_intv[[which(sim_revn_frac==temp_pick_plot[j])]][i,]) # Plot hypothestical data with consumption interventions.
         }
-        #temp <- cbind(H_expvals_base[i,], H_expvals_simu_2019[i,1:dim(H_expvals_base)[2]], temp) # Combine 2020 data and 2019 data. The latter starts from February 16, 2019, and the year-end is connected with the beginning of the year.
-        temp <- cbind(c(H_expvals_base[i,],rep(NA,dim(temp)[1]-dim(H_expvals_base)[2])), temp) # Add 2020-21 data to the data table. Because the length of 2020-21 data for estimation is shorter than that of hypothetical 2019 data, fulfill NA to extend to a year. The latter starts from February 16, 2019, and the year-end is connected with the beginning of the year.
+        if (ENG!=1 || plot_paper!=1){
+          # Plot 2019 data, 2020-2021 data and hypothetical data with interventions.
+          temp <- cbind(temp, H_expvals_simu_2019[i,]) # Combine 2020 data and 2019 data. The latter starts from February 16, 2019, and the year-end is connected with the beginning of the year.
+        }
         temp <- apply(temp,2,filter,rep(1/7,7)) # Take centered 7-day moving average.
         if (ENG==1){
-          #temp_xlab <- "Number of days from Feb. 16, 2020 or Feb. 15, 2019"
           temp_ylab <- "100 yen (per household per day, in 2020 real value）"
           if (plot_paper==1){
             temp_main_label <- hes_var_nm_2019_ENG[i] # Only show the data label for plots in the paper.
@@ -1276,18 +1525,19 @@ for (s in 1:dim(flag_simu)[1]){
             temp_main_label <- paste0(hes_var_nm_2019_ENG[i]," （",temp_main_label_hes, "）")
           }
         }else{
-          #temp_xlab <- "2020年2月16日（もしくは2019年2月15日）からの日数"
           temp_ylab <- "百円（一世帯・一日当たり、2020年水準実質値、7日間移動平均）"
           temp_main_label <- paste0(hes_var_nm_2019[i]," （",temp_main_label_hes, "）")
         }
-        matplot(temp, type="l",lty=1, col=c(1,3,4,5),  xaxt="n", xlab=time_label, ylab=temp_ylab, main=temp_main_label) # Plot H_expvals for 365 days from 2020 February 16 or 2019 February 15.
+        matplot(temp, type="l",lty=1, col=c(1,3,2,5),  xaxt="n", xlab=time_label, ylab=temp_ylab, main=temp_main_label) # Plot H_expvals for 365 days from 2020 February 16 or 2019 February 15.
         # Add legends.
         if (ENG==1){
-          #temp_legend <- c("legend(\"topright\",legend=c(\"2020-2021 data\",\"Hypothetical case of no restriction based on 2019 data\"", temp_legend_rest_rate,"), lty=1, col=c(1,2,3,4,5))") # Legends of the plot. 
-          temp_legend <- c("legend(\"topright\",legend=c(\"2020-2021 data\"", temp_legend_rest_rate,"), lty=1, col=c(1,3,4,5))") # Legends of the plot. 
+          if (plot_paper==1){
+            temp_legend <- c("legend(\"topright\",legend=c(\"2020-2021 data\"", temp_legend_rest_rate,"), lty=1, col=c(1,3,2,5))") # Legends of the plot. 
+          }else{
+            temp_legend <- c("legend(\"topright\",legend=c(\"2020-2021 data\"",temp_legend_rest_rate,",\"Hypothetical 2019 data\"), lty=1, col=c(1,3,2,5))") # Legends of the plot. 
+          }
         }else{
-          #temp_legend <- c("legend(\"topright\",legend=c(\"2020年～2021年データ\",\"2019年データに基づく仮想データ\"", temp_legend_rest_rate,"), lty=1, col=c(1,2,3,4,5))") # Legends of the plot. 
-          temp_legend <- c("legend(\"topright\",legend=c(\"2020年～2021年データ\"", temp_legend_rest_rate,"), lty=1, col=c(1,3,4,5))") # Legends of the plot. 
+          temp_legend <- c("legend(\"topright\",legend=c(\"2020年～2021年データ\"", temp_legend_rest_rate,",\"2019年データに基づく仮想データ\"), lty=1, col=c(1,3,2,5))") # Legends of the plot. 
         }
         eval(parse(text=paste0(temp_legend, collapse=""))) # Add legends to the plot.
         # Add x axis.
@@ -1305,33 +1555,28 @@ for (s in 1:dim(flag_simu)[1]){
     
   }
   
-  # Record the posterior mean and percentiles of the annual mean simulated R over the simulation period.
-  temp <- rep(NA,length(sim_revn_frac)*3) # Initialize the vector of column names.
-  for (i in 1:(length(sim_revn_frac)*3)){
-    if (i%%3==1){ 
-      temp[i] <- paste(- sim_revn_frac[i%/%3+1]*100) # Name the columns of the matrix, which are restrictions on household expenditure for cafe and drink.
-    }else{
-      temp[i] <- "&" # columns for percentiles.
+  # Record the posterior mean and percentiles of the annual mean simulated R over each simulation period to compute the average R.
+  # For now, only do so when there is no exogenous restriction on mobility.
+  if (flag_simu[s,2]==0){
+    for (v in 1:nrow(def_sim_dates)){
+      temp <- rep(NA,length(sim_revn_frac)*3) # Initialize the vector of column names.
+      for (i in 1:(length(sim_revn_frac)*3)){
+        if (i%%3==1){
+          temp[i] <- paste(- sim_revn_frac[i%/%3+1]*100) # Name the columns of the matrix, which are restrictions on household expenditure for cafe and drink.
+        }else{
+          temp[i] <- "&" # columns for percentiles.
+        }
+      }
+      temp_mean_R_pm <- t(matrix(mean_R_pm[v,],nr=3)) # Convert it to a column vector so that
+      rownames(temp_mean_R_pm) <- temp[seq(1,length(sim_revn_frac)*3,by=3)] # Name rows. For each level of revenue restriction, (mean, 2.5% percentile, 97.5% percentile) is one set.
+      colnames(temp_mean_R_pm) <- c("Mean", "2.5%", "97.5%")
+      eval(parse(text=paste0("sink(paste0(\"mean_R_pm",s,"_model",mdl_number,"_",R_sfx,"_",def_sim_dates[v,1],"_",def_sim_dates[v,2],".txt\"))")))
+      print("The posterior mean, 2.5%, and 97.5% percentiles of the mean of the reproduction number over the simulated period.")
+      print("Rows: restrictions on eating out.")
+      print(xtable(temp_mean_R_pm,digits=c(0,rep(2,3))))
+      sink()
     }
   }
-  if (flag_simu[s,2]==0){
-    mean_R_pm <- t(matrix(mean_R_pm,nr=3)) # Convert it to a column vector so that 
-    rownames(mean_R_pm) <- temp[seq(1,length(sim_revn_frac)*3,by=3)] # Name rows. For each level of revenue restriction, (mean, 2.5% percentile, 97.5% percentile) is one set.
-    colnames(mean_R_pm) <- c("Mean", "2.5%", "97.5%")
-  }else{
-    colnames(mean_R_pm) <- temp # Name columns. For each level of revenue restriction, (mean, 2.5% percentile, 97.5% percentile) is one set.
-    rownames(mean_R_pm) <- sim_mob_perc # Name the rows of the matrix, which are restrictions on mobility.
-  }
-  eval(parse(text=paste0("sink(paste0(\"mean_R_pm",s,"_model",mdl_number,"_",R_sfx,".txt\"))")))
-  print("The posterior mean, 2.5%, and 97.5% percentiles of the mean of the reproduction number over the simulated period.")
-  if (flag_simu[s,2]==0){
-    print("Rows: restrictions on eating out.")
-  }else{
-    print("Columns: restrictions on eating out.")
-    print("Rows: upper bound on mobility. (Inf means no restriction.)")
-  }
-  print(mean_R_pm)
-  sink()
   
   # Close the pdf file for each simulation.
   dev.off()

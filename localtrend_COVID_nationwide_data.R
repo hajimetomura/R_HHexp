@@ -3,11 +3,11 @@
 
 ########## Set the parameter #####################
 
-hes_end <- c(2021,1) # The end of the sample period available (year, month).
+hes_end <- c(2021,1) # The end of the sample period for estimation (year, month).
+
+hes_end_all <- c(2021,4) # The end of the sample period available (year, month).
 
 ah_ub <- 9 # The threshold for dummies for absolute humidity.
-
-#hes_end_date_estimation <- "2021-01-31" # Set the last date of household expenditure data for estimation.
 
 ########## Load data ###########################
 
@@ -37,7 +37,6 @@ for (i in 1:48){
 mob_data_2021 <- read.csv("./data/2021_JP_Region_Mobility_Report.csv", header=T, stringsAsFactors=FALSE) 
 mob_ndays_2021 <- length(mob_data_2021[[1]])/48 # Number of days in time series.
 mob_loc_nm_2021 <- rep(NA,48) # Initialize the vectors of names of locations.
-#mob_var_nm_2021 <- names(mob_data_2021)[10:15] # Names of variables in the original data set.
 if (sum(!(names(mob_data)[10:15] == names(mob_data_2021)[10:15]))>0){
  stop("The order of indicators in google mobility data may have changed.")
 }
@@ -71,18 +70,21 @@ mob_date <- c(mob_date,mob_date_2021[(which(mob_date_2021=="2021-03-13")+1):mob_
 # Revise the number of periods.
 mob_ndays <- length(mob_date)
 
+
+
+
 ### Household expenditure survey; Daily; 2020 Jan. 01; Unit: current yen. 
 
-hes_var <- NULL # Initialize a matrix for household expenditure item variables.
-hes_var2 <- NULL # Initialize a matrix for detailed household expenditure item variables.
+hes_var_all <- NULL # Initialize a matrix for household expenditure item variables.
+hes_var2_all <- NULL # Initialize a matrix for detailed household expenditure item variables.
 hes_var_nm <- NULL # Initialize a matrix for the names of household expenditure item variables.
 hes_var_nm2 <- NULL # Initialize a matrix for the names of detailed household expenditure item variables.
-hes_var_date <- NULL # Initialize a matrix for the dates of household expenditure item variables.
+hes_var_date_all <- NULL # Initialize a matrix for the dates of household expenditure item variables.
 
-for (i in 2020:hes_end[1]){
-  if (i == hes_end[1]) {
+for (i in 2020:hes_end_all[1]){
+  if (i == hes_end_all[1]) {
     # The last year in the sample.
-    temp_mt <- c(1,hes_end[2]) # The first and last month of the year available in the sample.
+    temp_mt <- c(1,hes_end_all[2]) # The first and last month of the year available in the sample.
   }else{
     temp_mt <- c(1,12) # The first and last month of the year available in the sample.
   }
@@ -100,8 +102,8 @@ for (i in 2020:hes_end[1]){
       temp_numeric2 <- conv_list(temp_dt2[10:675,14:(ncol(temp_dt2)-2-is.na(temp_dt2[1,ncol(temp_dt2)]))]) # Sometimes the last columns are NAs. In that case, exclude that column.
     }
     # Extend the time series of household expenditure items. Remove commas from the matrix
-    hes_var <- cbind(hes_var,temp_numeric)
-    hes_var2 <- cbind(hes_var2,temp_numeric2)
+    hes_var_all <- cbind(hes_var_all,temp_numeric)
+    hes_var2_all <- cbind(hes_var2_all,temp_numeric2)
     # Extend the names of household expenditure items for each period.
     temp_nm <- rep(NA,135-14+1) # Initialize the vector for variable names for month j, year i.
     for (k in 14:135){ 
@@ -131,7 +133,7 @@ for (i in 2020:hes_end[1]){
       temp_dates <- conv_list(temp_dt[1,14:(ncol(temp_dt)-2-is.na(temp_dt[1,ncol(temp_dt)]))]) # Sometimes the last columns are NAs. In that case, exclude that column.
     }
     # Extend the time series of dates. 
-    hes_var_date <- c(hes_var_date, paste0(i,"-",j,"-",temp_dates))
+    hes_var_date_all <- c(hes_var_date_all, paste0(i,"-",j,"-",temp_dates))
   }
 }
 
@@ -149,6 +151,9 @@ for (i in 2:ncol(hes_var_nm)){
   }
 }
 
+
+
+
 ### Approximate nationwide reproduction number; Daily; 2020 march. 01-; Unit: ratio; 
 
 R_data <- read.csv("./data/toyokeizai/effective_reproduction_number.csv", header=T, stringsAsFactors=FALSE) 
@@ -163,17 +168,17 @@ if (log_R == 1){
 
 #### Temperature and humidity data; Daily; 2020 Jan. 1-; Unit: %. 
 
-temper_var <- NULL # Initialize a matrix for temperatures across the capitals of prefectures.
-hum_var <- NULL # Initialize a matrix for humidity across the capitals of prefectures.
-weath_date <- NULL # Initialize a matrix for the dates of weather data.
+temper_var_all <- NULL # Initialize a matrix for temperatures across the capitals of prefectures.
+hum_var_all <- NULL # Initialize a matrix for humidity across the capitals of prefectures.
+weath_date_all <- NULL # Initialize a matrix for the dates of weather data.
 
 # Set the orders of the capitals of prefectures.
 weath_pref_nm <- c("札幌", "青森", "盛岡", "秋田", "仙台", "山形", "福島", "水戸", "宇都宮", "さいたま", "千葉", "東京", "新潟", "前橋", "長野", "甲府", "横浜", "静岡", "富山", "岐阜", "名古屋", "金沢", "福井", "大津", "津", "奈良", "和歌山", "大阪", "京都", "神戸", "鳥取", "岡山", "松江", "広島", "山口", "高松", "松山", "徳島", "高知", "福岡", "大分", "宮崎", "佐賀", "熊本", "鹿児島", "長崎", "那覇") 
 
-for (i in 2020:hes_end[1]){
-  if (i == hes_end[1]) {
+for (i in 2020:hes_end_all[1]){
+  if (i == hes_end_all[1]) {
     # The last year in the sample of household expenditure data.
-    temp_mt <- c(1,hes_end[2]) # The first and last month of the year available in the sample.
+    temp_mt <- c(1,hes_end_all[2]) # The first and last month of the year available in the sample.
   }else{
     temp_mt <- c(1,12) # The first and last month of the year available in the sample.
   }
@@ -207,16 +212,15 @@ for (i in 2020:hes_end[1]){
       }
     }
     # Extend the time series of weather data.
-    temper_var <- rbind(temper_var,temp_temper)
-    hum_var <- rbind(hum_var,temp_hum)
+    temper_var_all <- rbind(temper_var_all,temp_temper)
+    hum_var_all <- rbind(hum_var_all,temp_hum)
     
     # Extract the dates of each month from the first row of temp_dt.
     temp_dates <- temp_dt[5:(nrow(temp_dt)-(temp_dt[nrow(temp_dt),1]=="")),1] # Sometimes the last columns are NAs. In that case, exclude that column.
     # Extend the time series of dates. 
-    weath_date <- c(weath_date, temp_dates)
+    weath_date_all <- c(weath_date_all, temp_dates)
   }   
 }
-
 
 
 
@@ -322,9 +326,9 @@ CPI_m <- t(matrix(as.numeric(CPI_m),nc=3))
 ########## Reform the data ###########################
 
 # Compute 7-days backward moving averages of detailed household expenditure items.  
-hes_var2_ma <- t(apply(hes_var2, 1, function(x){filter(x,rep(1/7,7))})) # Centered moving averages. apply(,1,) transposes the original matrices.
-hes_var2_ma <- hes_var2_ma[,4:(ncol(hes_var2)-3)] # Shift rows to create backward moving averages.
-hes_var2_ma_date <- hes_var_date[7:ncol(hes_var2)] # Dates of data in hes_var2_ma. 
+hes_var2_ma_all <- t(apply(hes_var2_all, 1, function(x){filter(x,rep(1/7,7))})) # Centered moving averages. apply(,1,) transposes the original matrices.
+hes_var2_ma_all <- hes_var2_ma_all[,4:(ncol(hes_var2_all)-3)] # Shift rows to create backward moving averages.
+hes_var2_ma_date_all <- hes_var_date_all[7:ncol(hes_var2_all)] # Dates of data in hes_var2_ma. 
 
 # Compute 7-days backward moving averages of mobility reports data.  
 for (i in 1:6){
@@ -337,11 +341,11 @@ mob_ma_ndays <- length(mob_var_ma_date) # The number of rows of mob_var_i_ma for
 # Substitute missing data in hum_var. Interpolate them with data for neiboring dates.
 # 2020/5/6: Kobe.
 # 2020/12/10: Kumamoto.
-hum_var[weath_date=="2020/5/6", weath_pref_nm=="神戸"] <- (hum_var[weath_date=="2020/5/5", weath_pref_nm=="神戸"] + hum_var[weath_date=="2020/5/7", weath_pref_nm=="神戸"]) / 2
-hum_var[weath_date=="2020/12/10", weath_pref_nm=="熊本"] <- (hum_var[weath_date=="2020/12/9", weath_pref_nm=="熊本"] + hum_var[weath_date=="2020/12/11", weath_pref_nm=="熊本"]) / 2
+hum_var_all[weath_date_all=="2020/5/6", weath_pref_nm=="神戸"] <- (hum_var_all[weath_date_all=="2020/5/5", weath_pref_nm=="神戸"] + hum_var_all[weath_date_all=="2020/5/7", weath_pref_nm=="神戸"]) / 2
+hum_var_all[weath_date_all=="2020/12/10", weath_pref_nm=="熊本"] <- (hum_var_all[weath_date_all=="2020/12/9", weath_pref_nm=="熊本"] + hum_var_all[weath_date_all=="2020/12/11", weath_pref_nm=="熊本"]) / 2
 
 # Convert relative humidity into absolute humidity.
-abs_hum_var <- calc_abs_hum(temper_var,hum_var)
+abs_hum_var_all <- calc_abs_hum(temper_var_all,hum_var_all)
 
 # Compute the nationwide weighted averages of temperature and humidity.
 
@@ -350,45 +354,45 @@ if (flag_pref_wgt == 0){
   temp <- rbind(matrix(1,nr=31+14,nc=1)%*%TstPstv_pref_share[1,],TstPstv_pref_share) # Fill the first row of the data for the weights between 2020 Jan. 1 and 2020 Feb. 14, one day before the first date of the sample period for the data. 
   # Extract the weights for the duration of weather data.
   temp <- temp[1:(31+14+which(TstPstv_pref_share_date==weath_date[length(weath_date)])),]
-  temper_var_ave <- rowSums(temper_var * temp) 
-  hum_var_ave <- rowSums(hum_var * temp) 
-  abs_hum_var_ave <- rowSums(abs_hum_var * temp) 
-  ind_abs_hum_var_ave <- rowSums((abs_hum_var<ah_ub) * temp) # = 1 if absolute humidity < ah_ub g/m^3, which is based on Nottmeyer et al (2020). Then take the nationwide average of the indicator. 
+  temper_var_ave_all <- rowSums(temper_var_all * temp) 
+  hum_var_ave_all <- rowSums(hum_var_all * temp) 
+  abs_hum_var_ave_all <- rowSums(abs_hum_var_all * temp) 
+  ind_abs_hum_var_ave_all <- rowSums((abs_hum_var_all<ah_ub) * temp) # = 1 if absolute humidity < ah_ub g/m^3, which is based on Nottmeyer et al (2020). Then take the nationwide average of the indicator. 
 }else{
   # Use population shares for the weights for prefectures. 
-  temper_var_ave <- c(temper_var %*% popu_share) 
-  hum_var_ave <- c(hum_var %*% popu_share) 
-  abs_hum_var_ave <- c(abs_hum_var %*% popu_share) 
-  ind_abs_hum_var_ave <- c((abs_hum_var<ah_ub) %*% popu_share) # = 1 if absolute humidity < ah_ub g/m^3, which is based on Nottmeyer et al (2020). Then take the nationwide average of the indicator. 
+  temper_var_ave_all <- c(temper_var_all %*% popu_share) 
+  hum_var_ave_all <- c(hum_var_all %*% popu_share) 
+  abs_hum_var_ave_all <- c(abs_hum_var_all %*% popu_share) 
+  ind_abs_hum_var_ave_all <- c((abs_hum_var_all<ah_ub) %*% popu_share) # = 1 if absolute humidity < ah_ub g/m^3, which is based on Nottmeyer et al (2020). Then take the nationwide average of the indicator. 
 }
 
 
 
 # Compute 7-days backward moving averages of temperature and humidity.
-temper_var_ma <- apply(temper_var, 2, function(x){filter(x,rep(1/7,7))}) # Centered moving averages. apply(,1,) transposes the original matrices.
-temper_var_ma <- temper_var_ma[4:(nrow(temper_var_ma)-3),] # Shift rows to create backward moving averages.
-hum_var_ma <- apply(hum_var, 2, function(x){filter(x,rep(1/7,7))}) # Centered moving averages. apply(,1,) transposes the original matrices.
-hum_var_ma <- hum_var_ma[4:(nrow(hum_var_ma)-3),] # Shift rows to create backward moving averages.
-abs_hum_var_ma <- apply(abs_hum_var, 2, function(x){filter(x,rep(1/7,7))}) # Centered moving averages. apply(,1,) transposes the original matrices.
-abs_hum_var_ma <- abs_hum_var_ma[4:(nrow(abs_hum_var_ma)-3),] # Shift rows to create backward moving averages.
-weath_ma_date <- weath_date[7:length(weath_date)] # Dates of data in moving average data. 
+temper_var_ma_all <- apply(temper_var_all, 2, function(x){filter(x,rep(1/7,7))}) # Centered moving averages. apply(,1,) transposes the original matrices.
+temper_var_ma_all <- temper_var_ma_all[4:(nrow(temper_var_ma_all)-3),] # Shift rows to create backward moving averages.
+hum_var_ma_all <- apply(hum_var_all, 2, function(x){filter(x,rep(1/7,7))}) # Centered moving averages. apply(,1,) transposes the original matrices.
+hum_var_ma_all <- hum_var_ma_all[4:(nrow(hum_var_ma_all)-3),] # Shift rows to create backward moving averages.
+abs_hum_var_ma_all <- apply(abs_hum_var_all, 2, function(x){filter(x,rep(1/7,7))}) # Centered moving averages. apply(,1,) transposes the original matrices.
+abs_hum_var_ma_all <- abs_hum_var_ma_all[4:(nrow(abs_hum_var_ma_all)-3),] # Shift rows to create backward moving averages.
+weath_ma_date_all <- weath_date_all[7:length(weath_date_all)] # Dates of data in moving average data. 
 
 # Compute the nationwide weighted averages of 7-day moving averages of temperature and humidity.
 if (flag_pref_wgt == 0){
   # Use the number of new cases in the past 7 days for the weights for prefectures. 
   temp <- rbind(matrix(1,nr=31+14,nc=1)%*%TstPstv_pref_share[1,],TstPstv_pref_share) # Fill the first row of the data for the weights between 2020 Jan. 1 and 2020 Feb. 14, one day before the first date of the sample period for the data. 
   # Extract the weights for the duration of weather data. The moving average of weather data starts from 2020 January 7.
-  temp <- temp[7:(31+14+which(TstPstv_pref_share_date==weath_ma_date[length(weath_ma_date)])),]
-  temper_var_ma_ave <- rowSums(temper_var_ma * temp) 
-  hum_var_ma_ave <- rowSums(hum_var_ma * temp) 
-  abs_hum_var_ma_ave <- rowSums(abs_hum_var_ma * temp) 
-  ind_abs_hum_var_ma_ave <- rowSums((abs_hum_var_ma<ah_ub) * temp) # = 1 if absolute humidity < ah_ub g/m^3, which is based on Nottmeyer et al (2020). Then take the nationwide average of the indicator. 
+  temp <- temp[7:(31+14+which(TstPstv_pref_share_date==weath_ma_date_all[length(weath_ma_date_all)])),]
+  temper_var_ma_ave_all <- rowSums(temper_var_ma_all * temp) 
+  hum_var_ma_ave_all <- rowSums(hum_var_ma_all * temp) 
+  abs_hum_var_ma_ave_all <- rowSums(abs_hum_var_ma_all * temp) 
+  ind_abs_hum_var_ma_ave_all <- rowSums((abs_hum_var_ma_all<ah_ub) * temp) # = 1 if absolute humidity < ah_ub g/m^3, which is based on Nottmeyer et al (2020). Then take the nationwide average of the indicator. 
 }else{
   # Use population shares for the weights for prefectures. 
-  temper_var_ma_ave <- c(temper_var_ma %*% popu_share) 
-  hum_var_ma_ave <- c(hum_var_ma %*% popu_share) 
-  abs_hum_var_ma_ave <- c(abs_hum_var_ma %*% popu_share) 
-  ind_abs_hum_var_ma_ave <- c((abs_hum_var_ma<ah_ub) %*% popu_share) # = 1 if absolute humidity < ah_ub g/m^3, which is based on Nottmeyer et al (2020). Then take the nationwide average of the indicator. 
+  temper_var_ma_ave_all <- c(temper_var_ma_all %*% popu_share) 
+  hum_var_ma_ave_all <- c(hum_var_ma_all %*% popu_share) 
+  abs_hum_var_ma_ave_all <- c(abs_hum_var_ma_all %*% popu_share) 
+  ind_abs_hum_var_ma_ave_all <- c((abs_hum_var_ma_all<ah_ub) %*% popu_share) # = 1 if absolute humidity < ah_ub g/m^3, which is based on Nottmeyer et al (2020). Then take the nationwide average of the indicator. 
 }
 
 # Compute the 2020 average price for each item. 13th column is Jan 2020.
@@ -399,60 +403,85 @@ CPI_m_2020 <- apply(CPI_m,2,function(x){x/temp}) # Set the benchmark of CPI to 2
 # Interpolate the CPI for hotel services during the GO-TO-TRAVEL period in order to convert "宿泊料" in household expenditure into real term. 
 # "一般外食” in CPI is used for "食事代", "喫茶代", "飲酒代"; interporated "宿泊料" in CPI for "宿泊料" in household expenditure; "宿泊料" in CPI for "国内パック旅行" in household expenditure.; "被服及び履物" in CPI for "被服及び履物" in household expenditure.
 # GO-TO-TRAVEL period: 2020 July 22 to 2020 Dec 27. 
-temp <- CPI_m_2020[2,12+7] + (CPI_m_2020[2,25]-CPI_m_2020[2,12+7])/6 * 1:5 # Linear interporation of CPI for "宿泊料".
-CPI_m_2020_rvs <- rbind(CPI_m_2020[1,],CPI_m_2020[2,],CPI_m_2020[2,],CPI_m_2020[3,]) # Insert one more CPI series for "宿泊料".
+temp <- CPI_m_2020[2,12+7] + (CPI_m_2020[2,25]-CPI_m_2020[2,12+7])/6 * 1:5 # Linear interpolation of CPI for "宿泊料".
+CPI_m_2020_rvs <- rbind(CPI_m_2020[1,],CPI_m_2020[2,],CPI_m_2020[2,],CPI_m_2020[3,]) # Insert one more row for "宿泊料".
 CPI_m_2020_rvs[2,(12+8):24] <- temp # Insert the interporated CPI series for "宿泊料" in household expenditures
   
 # Convert monthly CPI into daily CPI from Jan 2019.
 ndays_olympic <- c(31,29,31,30,31,30,31,31,30,31,30,31) # Number of days in an olympic year.
 ndays_normal <- c(31,28,31,30,31,30,31,31,30,31,30,31) # Number of days in an non-olympic year.
 
-temp_date <- c(ndays_normal,ndays_olympic,rep(ndays_normal,(hes_end[1]-2021)),ndays_normal[1:hes_end[2]]) # Create a series of date from Jan. 2020 to the end of the last month in the estimation period.
+temp_date <- c(ndays_normal,ndays_olympic,rep(ndays_normal,(hes_end_all[1]-2021)),ndays_normal[1:hes_end_all[2]]) # Create a series of date from Jan. 2020 to the end of the last month in the estimation period.
 CPI_d_2020 <- matrix(1,nc=temp_date[1]) %x% CPI_m_2020_rvs[,1] # Initialize a matrix to contain daily CPI.
 for (i in 2: length(temp_date)){
   CPI_d_2020 <- cbind(CPI_d_2020, matrix(1,nc=temp_date[i]) %x% CPI_m_2020_rvs[,i]) # Fill all the dates in a month by the month's CPI for each item.
 }
 
+
+
+
 ########## Set the explanatory variables in a linear regression for the reproduction number ###########################
+
+# Set the last date of the estimation period.
+hes_end_date_estimation <- paste0(hes_end[1],"-",hes_end[2],"-",ndays_normal[hes_end[2]]) # For household expenditures.
+weath_end_date_estimation <- paste0(hes_end[1],"/",hes_end[2],"/",ndays_normal[hes_end[2]]) # For absolute humidity.
 
 # Create a matrix of household expenditure items for estimation. 
 
 if (nominal_hes == 1){
   # These are nominal term.
-  H_expvals <- rbind(hes_var2[hes_var_nm2[,1]=="食事代",],
-                     hes_var2[hes_var_nm2[,1]=="喫茶代",],
-                     hes_var2[hes_var_nm2[,1]=="飲酒代",],
-                     hes_var2[hes_var_nm2[,1]=="宿泊料",],
-                     hes_var2[hes_var_nm2[,1]=="国内パック旅行費",],
-                     t(apply(hes_var2[hes_var_nm2[,1]=="被服及び履物",],2,mean))) #This label appears multiple times.
+  H_expvals_all <- rbind(hes_var2_all[hes_var_nm2[,1]=="食事代",],
+                     hes_var2_all[hes_var_nm2[,1]=="喫茶代",],
+                     hes_var2_all[hes_var_nm2[,1]=="飲酒代",],
+                     hes_var2_all[hes_var_nm2[,1]=="宿泊料",],
+                     hes_var2_all[hes_var_nm2[,1]=="国内パック旅行費",],
+                     t(apply(hes_var2_all[hes_var_nm2[,1]=="被服及び履物",],2,mean))) #This label appears multiple times.
+  
+  
 }else{
   
   # Compute real household expenditure values in 2020 CPI average for each item.
   # CPI_d_2020 contains "一般外食”, interpolated "宿泊料" to remove the effect of GO-TO-TRAVEL, "宿泊料", "被服及び履物" in CPI.
   # The sample period of CPI_d_2020 starts from Jan. 1, 2019.
 
-    H_expvals <- rbind(hes_var2[hes_var_nm2[,1]=="食事代",] / CPI_d_2020[1, 366:dim(CPI_d_2020)[2]], #From 2020 Jan 1 to three days before the end of the last month in the estimation period.
-                     hes_var2[hes_var_nm2[,1]=="喫茶代",] / CPI_d_2020[1, 366:dim(CPI_d_2020)[2]],
-                     hes_var2[hes_var_nm2[,1]=="飲酒代",] / CPI_d_2020[1, 366:dim(CPI_d_2020)[2]],
-                     hes_var2[hes_var_nm2[,1]=="宿泊料",] / CPI_d_2020[2, 366:dim(CPI_d_2020)[2]],
-                     hes_var2[hes_var_nm2[,1]=="国内パック旅行費",] / CPI_d_2020[3, 366:dim(CPI_d_2020)[2]],
-                     t(apply(hes_var2[hes_var_nm2[,1]=="被服及び履物",],2,mean)) / CPI_d_2020[4, 366:dim(CPI_d_2020)[2]]) #This label appears multiple times.
+    H_expvals_all <- rbind(hes_var2_all[hes_var_nm2[,1]=="食事代",] / CPI_d_2020[1, 366:dim(CPI_d_2020)[2]], #From 2020 Jan 1 to three days before the end of the last month in the estimation period.
+                     hes_var2_all[hes_var_nm2[,1]=="喫茶代",] / CPI_d_2020[1, 366:dim(CPI_d_2020)[2]],
+                     hes_var2_all[hes_var_nm2[,1]=="飲酒代",] / CPI_d_2020[1, 366:dim(CPI_d_2020)[2]],
+                     hes_var2_all[hes_var_nm2[,1]=="宿泊料",] / CPI_d_2020[2, 366:dim(CPI_d_2020)[2]],
+                     hes_var2_all[hes_var_nm2[,1]=="国内パック旅行費",] / CPI_d_2020[3, 366:dim(CPI_d_2020)[2]],
+                     t(apply(hes_var2_all[hes_var_nm2[,1]=="被服及び履物",],2,mean)) / CPI_d_2020[4, 366:dim(CPI_d_2020)[2]]) #This label appears multiple times.
   
-  H_expvals <- H_expvals / 100 # To increase the number of digit of coefficients to avoid the effect of possible rounding error.  
+  H_expvals_all <- H_expvals_all / 100 # To increase the number of digit of coefficients to avoid the effect of possible rounding error.  
 }
-
-# Set the sample period of household expenditure data, given a possible structural change due to the spread of mutant strains after Feb. 2021.
-#H_expvals <- H_expvals[,1:which(hes_var_date==hes_end_date_estimation)]
-
 
 # Choose the absolute humidity data for the use of the estimation.
 if (log_abs_hum == 1){
-  W_abs_hum <- log(abs_hum_var_ave) # Take log of absolute humidity.
+  W_abs_hum_all <- log(abs_hum_var_ave_all) # Take log of absolute humidity.
 }else if(log_abs_hum == 2){
-  W_abs_hum <- abs_hum_var_ave # Use the level of absolute humidity.
+  W_abs_hum_all <- abs_hum_var_ave_all # Use the level of absolute humidity.
 }else{
-  W_abs_hum <- 1 - ind_abs_hum_var_ave # Use the dummy that absolute humidity exceeds 9 g/m^3.
+  W_abs_hum_all <- 1 - ind_abs_hum_var_ave_all # Use the dummy that absolute humidity exceeds 9 g/m^3.
 }
+
+# Define household expenditures and weather data for the estimation period.
+H_expvals <- H_expvals_all[,1:which(hes_var_date_all==hes_end_date_estimation)] # Household expenditures data up to the date defined by hes_end.
+hes_var_date <- hes_var_date_all[1:which(hes_var_date_all==hes_end_date_estimation)] # Dates for household expenditures data up to the date defined by hes_end.
+
+hes_var2_ma <- hes_var2_ma_all[,1:which(hes_var2_ma_date_all==hes_end_date_estimation)] # 7-day backward moving average of household expenditure data up to the date defined by hes_end.
+hes_var2_ma_date <- hes_var2_ma_date_all[1:which(hes_var2_ma_date_all==hes_end_date_estimation)] # Dates for 7-day backward moving average of household expenditure data up to the date defined by hes_end.
+
+W_abs_hum <- W_abs_hum_all[1:which(weath_date_all==weath_end_date_estimation)] # Absolute humidity data up to the date defined by hes_end.
+weath_date <- weath_date_all[1:which(weath_date_all==weath_end_date_estimation)] # Dates for weather data up to the date defined by hes_end.
+
+temper_var_ave <- temper_var_ave_all[1:which(weath_date_all==weath_end_date_estimation)] # Nation-wide average temperature data up to the date defined by hes_end.  
+hum_var_ave <- hum_var_ave_all[1:which(weath_date_all==weath_end_date_estimation)] # Nation-wide average relative humidity data up to the date defined by hes_end.  
+ind_abs_hum_var_ave <- ind_abs_hum_var_ave_all[1:which(weath_date_all==weath_end_date_estimation)] # 7-day backward moving averages of nation-wide dummy for absolute humidity data up to the date defined by hes_end.
+
+temper_var_ma_ave <- temper_var_ma_ave_all[1:which(weath_ma_date_all==weath_end_date_estimation)] # 7-day backward moving averages of nation-wide average temperature data up to the date defined by hes_end.  
+hum_var_ma_ave <- hum_var_ma_ave_all[1:which(weath_ma_date_all==weath_end_date_estimation)] # 7-day backward moving averages of nation-wide average relative humidity data up to the date defined by hes_end.  
+abs_hum_var_ma_ave <- abs_hum_var_ma_ave_all[1:which(weath_ma_date_all==weath_end_date_estimation)] # 7-day backward moving averages of nation-wide average absolute humidity data up to the date defined by hes_end.  
+ind_abs_hum_var_ma_ave <- ind_abs_hum_var_ma_ave_all[1:which(weath_ma_date_all==weath_end_date_estimation)] # 7-day backward moving averages of nation-wide dummy for absolute humidity data up to the date defined by hes_end.
+weath_ma_date <- weath_ma_date_all[1:which(weath_ma_date_all==weath_end_date_estimation)] # Dates for 7-day backward moving averages of weather data up to the date defined by hes_end.
 
 # Create the distribution of lags between an infection and a symptom for the use of the estimation. 
 if (log_dist_incub == 1){
@@ -488,3 +517,4 @@ if (mdl_number >= 13){
   D_pre_SE1 <- c(rep(0, length(R_date) + 29-14)) 
   D_pre_SE1[1:(which(R_date=="2020/4/6") + 29-14)] <- 1 # First declaration: The first date to 2020/4/7. 
 }
+

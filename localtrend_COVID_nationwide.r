@@ -1,28 +1,6 @@
 # Estimate a linear regression for the reproduction number with mobility report data and household expenditure data.
 # Frequency: daily.
-# Model 1: No restriction on the signs of the effects of household expenditure items and mobility in transportation.
-# Model 2- : Non-negativity restriction on the signs of the effects of household expenditure items and mobility in transportation and Non-positive restriction on the effect of lower absolute humidity.
-# Model 2: Error terms are the simple 7-day moving average of white noises.
-# Model 3: Add dummy variables for the two states of emergency to Model 2.
-# Model 4: Error terms have serial correlation, which is equivalent to AR(1).
-# Model 5: Add dummy variables for the two states of emergency to Model 4.
-#
-# Model 6-: Non-negativity restriction on the signs of the effects of household expenditure items and mobility in transportation and Non-positive restriction on the effect of lower absolute humidity.
-# Model 6-: coefficient restrictions so that household expenditure and mobility have always positive effects on the reproduction number.
-# Model 6-: Household expenditures are in level, rather than in log, because some items became zero during the estimation period.
-# Model 6: Error terms have serial correlation. 
-# Model 7: Error terms have serial correlation. Dummy variables for the two states of emergency to Model 4.
-# Model 8: Error terms have no serial correlation.
-# Model 9: Error terms have no serial correlation. Dummy variables for the two states of emergency to Model 4.
-# Model 10: Clothing and footwear are dropped from the explanatory variables for Model 7.
-# Model 11: The error term in Model 7 is changed to AR(2) process.
-# Model 12: The error term in Model 7 has a serial correlation with shocks in a week ago. (No convergence.)
-# Model 13: Add a dummy for the period before the first state of emergency to Model 7.
-# Model 14: Add a dummy for the period before the first state of emergency to Model 11.
-# Model 15: Add a dummy for the period before the first state of emergency to Model 7 and remove serial correlation in error terms from Model 7.
-# Model 16: Apply the distribution of incubation periods to AR(1) error term. Also add white noises as a measurement error of R to Model 13.
-# Model 17: Modify the distribution of the initial value of unobserved infectious events to the unconditional distribution.
-# Model 18: Set real <lower=0, upper=1> rho in Model 17; // AR(1) term for unobseved infectious events.
+# Model 17: Modify the distribution of the initial value of residual infectious events to the unconditional distribution.
 
 
 ########## Clear global workspace and plots. ################ 
@@ -40,7 +18,7 @@ flag_pref_wgt <- 1 # Default value: 1. If = 1, use population share among prefec
 
 log_abs_hum <- 0 # Default value: 0. If = 1, use log of absolute humidity. If = 2, use the level of absolute humidity. Otherwise, use a dummy that absolute humidity exceeds 7. Unit: g/m^3.
 
-log_R <- 1 # Default value: 0. If = 1, use log of the reproduction number. otherwise, use the level.
+log_R <- 1 # Default value: 1. If = 1, use log of the reproduction number. otherwise, use the level.
 
 log_dist_incub <- 0 #  Default value: 0. If = 1, use a log normal distribution based on Chinese data reported by Stephen A et al. (2020). =0, use the empirical distribution of incubation periods based on Sugishita (2020).
 
@@ -134,10 +112,7 @@ if (plot_data == 1){
 
   # Find the location of the period of the state of emergency.
   date_label <- R_date[1:ncol(temp_hes)] # Define the date label to use.
-  SE <- c(which(date_label=="2020/4/7"),which(date_label=="2020/5/25"),which(date_label=="2021/1/7")) # Add 3/21 after the sample period exceeds this date.
-  if (length(date_label)>=which(date_label=="2021/1/7")+31-7+28+21){
-    SE <- c(SE, which(date_label=="2021/3/21")) # Add the end of the second emergency.
-  }
+  SE <- c(which(date_label=="2020/4/7"),which(date_label=="2020/5/25"),which(date_label=="2021/1/7"),which(date_label=="2021/3/21"),which(date_label=="2021/4/25")) # Add 3/21 after the sample period exceeds this date.
   
   # Plot data.  
   rslt_ccf_R_hes<-plot_ts_ccf(temp_R,R_label,temp_hes,hes_label,date_label,h_val=1,SE=SE)
@@ -178,8 +153,8 @@ if (plot_data == 1){
   mincc_R_hes <- min(temp_mincc) # Cut off value for correlation coefficients to extract variables of interest.
   print(paste("ccf: hes to R. Cut-off:",mincc_R_hes))
   print(cbind(hes_var_nm2[(rslt_ccf_R_hes[,1] >= mincc_R_hes),1], rslt_ccf_R_hes[(rslt_ccf_R_hes[,1] >= mincc_R_hes),])) # Print the variables of interest.
-
-  
+  temp <- cbind(hes_var_nm2[,1], rslt_ccf_R_hes) # Save the cross correlation coefficients of all household expenditure items in a csv file.
+  write.csv(temp, file="ccf_R_hes.csv",row.names=FALSE)  # Save the cross correlation coefficients of all household expenditure items  in a csv file.
   
   
   ### Plot each expenditure item against nationwide mobility report on recreation, grocery, and workplace.
@@ -206,11 +181,8 @@ if (plot_data == 1){
 
     # Find the location of the period of the state of emergency.
     date_label <- mob_var_ma_date[1:ncol(temp_hes)] # Define the date label to use.
-    SE <- c(which(date_label=="2020-04-07"),which(date_label=="2020-05-25"),which(date_label=="2021-01-07")) # Add 3/21 after the sample period exceeds this date.
-    if (length(date_label)>=which(date_label=="2021-01-07")+31-7+28+21){
-      SE <- c(SE, which(date_label=="2021-03-21")) # Add the end of the second emergency.
-    }
-    
+    SE <- c(which(date_label=="2020-04-07"),which(date_label=="2020-05-25"),which(date_label=="2021-01-07"),which(date_label=="2021-03-21"),which(date_label=="2021-04-25")) # Add 3/21 after the sample period exceeds this date.
+
     # Plot data.
     rslt_ccf_mob_hes[[i]] <- plot_ts_ccf(temp_mob,mob_var_nm[i],temp_hes,hes_label,date_label,h_val=NULL,SE=SE)
     
@@ -261,11 +233,8 @@ if (plot_data == 1){
     
     # Find the location of the period of the state of emergency.
     date_label <- weath_ma_date[1:ncol(temp_hes)] # Define the date label to use.
-    SE <- c(which(date_label=="2020/4/7"),which(date_label=="2020/5/25"),which(date_label=="2021/1/7")) # Add 3/21 after the sample period exceeds this date.
-    if (length(date_label)>=which(date_label=="2021/1/7")+31-7+28+21){
-      SE <- c(SE, which(date_label=="2021/3/21")) # Add the end of the second emergency.
-    }
-    
+    SE <- c(which(date_label=="2020/4/7"),which(date_label=="2020/5/25"),which(date_label=="2021/1/7"), which(date_label=="2021/3/21"),which(date_label=="2021/4/25")) # Add 3/21 after the sample period exceeds this date.
+
     # Plot data.
     rslt_ccf_W_hes[[i]] <- plot_ts_ccf(temp_W,temp_nm,temp_hes,hes_label,date_label,h_val=mean(temp_W),SE=SE)
     
@@ -297,11 +266,8 @@ if (plot_data == 1){
     
     # Find the location of the period of the state of emergency.
     date_label <- R_date[1:length(temp_mob)] # Define the date label to use.
-    SE <- c(which(date_label=="2020/4/7"),which(date_label=="2020/5/25"),which(date_label=="2021/1/7")) # Add 3/21 after the sample period exceeds this date.
-    if (length(date_label)>=which(date_label=="2021/1/7")+31-7+28+21){
-      SE <- c(SE, which(date_label=="2021/3/21")) # Add the end of the second emergency.
-    }
-    
+    SE <- c(which(date_label=="2020/4/7"),which(date_label=="2020/5/25"),which(date_label=="2021/1/7"),which(date_label=="2021/3/21"),which(date_label=="2021/4/25")) # Add 3/21 after the sample period exceeds this date.
+
     # Plot data.
     rslt_ccf<-plot_ts_ccf(temp_R,R_label,matrix(temp_mob,nr=1),mob_var_nm[i],date_label,h_val=1,SE=SE)
     
@@ -345,11 +311,8 @@ if (plot_data == 1){
       
       # Find the location of the period of the state of emergency.
       date_label <- mob_var_ma_date[1:length(temp_W)] # Define the date label to use.
-      SE <- c(which(date_label=="2020/4/7"),which(date_label=="2020/5/25"),which(date_label=="2021/1/7")) # Add 3/21 after the sample period exceeds this date.
-      if (length(date_label)>=which(date_label=="2021-01-07")+31-7+28+21){
-        SE <- c(SE, which(date_label=="2021-03-21")) # Add the end of the second emergency.
-      }
-      
+      SE <- c(which(date_label=="2020/4/7"),which(date_label=="2020/5/25"),which(date_label=="2021/1/7"),which(date_label=="2021/3/21"),which(date_label=="2021/4/25")) # Add 3/21 after the sample period exceeds this date.
+
       # Plot data.
       rslt_ccf<-plot_ts_ccf(temp_mob,mob_var_nm[i],matrix(temp_W,nr=1),temp_nm,date_label,h_val=0,SE=SE)
       
@@ -391,11 +354,8 @@ if (plot_data == 1){
     
     # Find the location of the period of the state of emergency.
     date_label <- R_date[1:length(temp_W)] # Define the date label to use.
-    SE <- c(which(date_label=="2020/4/7"),which(date_label=="2020/5/25"),which(date_label=="2021/1/7")) # Add 3/21 after the sample period exceeds this date.
-    if (length(date_label)>=which(date_label=="2021/1/7")+31-7+28+21){
-      SE <- c(SE, which(date_label=="2021/3/21")) # Add the end of the second emergency.
-    }
-    
+    SE <- c(which(date_label=="2020/4/7"),which(date_label=="2020/5/25"),which(date_label=="2021/1/7"),which(date_label=="2021/3/21"),which(date_label=="2021/4/25")) # Add 3/21 after the sample period exceeds this date.
+
     # Plot data.
     rslt_ccf<-plot_ts_ccf(temp_R,R_label,matrix(temp_W,nr=1),temp_nm,date_label,h_val=1,SE=SE)
     
@@ -426,10 +386,7 @@ if (plot_data == 1){
   eval(parse(text=paste0("pdf(file=\"plot_ind_abs_hum_ave_ENG",as.logical(ENG),".pdf\", family=\"Japan1GothicBBB\")")))
   temp <- 1 - ind_abs_hum_var_ave # Dummy variable for the weighted average of absolute humidity across prefectures.  
   # Find the location of the period of the state of emergency.
-  temp_SE <- c(which(weath_date=="2020/4/7"),which(weath_date=="2020/5/25"),which(weath_date=="2021/1/7")) # Add 3/21 after the sample period exceeds this date.
-  if (length(weath_date)>=which(weath_date=="2021/1/7")+31-7+28+21){
-    temp_SE <- c(temp_SE, which(weath_date=="2021/3/21")) # Add the end of the second emergency.
-  }
+  temp_SE <- c(which(weath_date=="2020/4/7"),which(weath_date=="2020/5/25"),which(weath_date=="2021/1/7"),which(weath_date=="2021/3/21"),which(weath_date=="2021/4/25")) # Add 3/21 after the sample period exceeds this date.
   if (ENG==1){
     #temp_x_lab <- "Daily (Dotted lines are the first and last dates of each state of emergency)"
     temp_x_lab <- ""
@@ -472,7 +429,7 @@ if (mdl_number <= 12){
   # Construct the data set for the stan file.
   dat <- list(R_TT = length(R_var), # From 2020 March 1.
               R = R, # Unit: ratio.
-              H_TT = ncol(hes_var2), # From 2020 Jan. 1.
+              H_TT = ncol(H_expvals), # From 2020 Jan. 1.
               H_expvals = H_expvals,
               M_TT = mob_ndays, # From 2020 Feb. 15.
               M_trans = mob_var4[,1], # Unit: Percentage points.
@@ -488,7 +445,7 @@ if (mdl_number <= 12){
 }else{
   dat <- list(R_TT = length(R_var), # From 2020 March 1.
               R = R, # Unit: ratio.
-              H_TT = ncol(hes_var2), # From 2020 Jan. 1.
+              H_TT = ncol(H_expvals), # From 2020 Jan. 1.
               H_expvals = H_expvals,
               M_TT = mob_ndays, # From 2020 Feb. 15.
               M_trans = mob_var4[,1], # Unit: Percentage points.
@@ -563,10 +520,7 @@ if (estim ==1){
     stanmodel,
     data=dat,
     seed=18,
-    #control = list(max_treedepth = 20)
-    #chains=4, iter=20000, warmup=10000, thin=5,
     control = list(adapt_delta=0.99, max_treedepth = 20)
-    #control = list(adapt_delta=0.9, stepsize=1e-05, max_treedepth = 20)
   )
   
   # Save the mcmc sample.
@@ -623,15 +577,15 @@ for (i in 1:length(name_list)){
   eval(parse(text=paste0(name_list[i],"_975 <- temp[[3]]"))) # 97.5% percentile
 }
 
-# Compute the mean and the percentile values of shocks to unobserved infectious events.
+# Compute the mean and the percentile values of shocks to residual infectious events.
 
 if (mdl_number>=16){
-  XF_hat_err <- ms$XF_err * 0 # Initialize shocks to unobserved infectious events.
+  XF_hat_err <- ms$XF_err * 0 # Initialize shocks to residual infectious events.
   for (i in 1:length(ms$sd_XF)){
-    # Multiply simulated white noises following the standard normal distribution by the standard deviation of shocks to unobserved infectious events. 
+    # Multiply simulated white noises following the standard normal distribution by the standard deviation of shocks to residual infectious events. 
     XF_hat_err[i,] <- ms$sd_XF[i] * ms$XF_err[i,]   
   } 
-  temp <- Extract_mean_ptl(XF_hat_err, ptl=c(0.025,0.975)) # Compute percentiles of the shocks to unobserved infectious events in the mcmc samples.
+  temp <- Extract_mean_ptl(XF_hat_err, ptl=c(0.025,0.975)) # Compute percentiles of the shocks to residual infectious events in the mcmc samples.
   XF_hat_err_pm <- temp[[1]] # posterior mean
   XF_hat_err_025 <- temp[[2]] # 2.5% percentile
   XF_hat_err_975 <- temp[[3]] # 97.5% percentile
@@ -658,7 +612,6 @@ if (ENG == 1){
     exp_var_name <- c(exp_var_name, "Before 1st state of emergency") # Include the label of additional dummy variables.
   }
 
-  #time_label <- "Daily (Dotted lines are the first and last dates of each state of emergency)"
   time_label <- ""
   
 }else{
@@ -729,11 +682,7 @@ date_label3 <- mob_date[(29-14):which(mob_date=="2021-02-01")]
 
 # Find the location of the period of the state of emergency.
 for (i in 0:3){
-  if (length(mob_date)>=366 - (31+14) + 31 + 28 + 21){ # mob_date starts from 2020 Feb. 15. 2020 has 366 days.
-    eval(parse(text=paste0("SE",i,"<- c(which(date_label",i,"==\"2020-04-07\"),which(date_label",i,"==\"2020-05-25\"),which(date_label",i,"==\"2021-01-07\"),which(date_label",i,"==\"2021-03-21\"))"))) 
-  }else{
-    eval(parse(text=paste0("SE",i,"<- c(which(date_label",i,"==\"2020-04-07\"),which(date_label",i,"==\"2020-05-25\"),which(date_label",i,"==\"2021-01-07\"))"))) # The sample period ends before 3/21.
-  }
+  eval(parse(text=paste0("SE",i,"<- c(which(date_label",i,"==\"2020-04-07\"),which(date_label",i,"==\"2020-05-25\"),which(date_label",i,"==\"2021-01-07\"),which(date_label",i,"==\"2021-03-21\"),which(date_label",i,"==\"2021-04-25\"))")))
 }
 
 # Fix the range of the y axis for the components of changes in the reproduction number.
@@ -768,10 +717,9 @@ for (i in 1:(length(temp_nl))){
   eval(parse(text=paste0("temp_nl_with_CI <- c(\"",temp_nl[i],"_pm, ", temp_nl[i],"_025, ",temp_nl[i],"_975\")"))) # Define character names for the posterior mean (_pm).
   eval(parse(text=paste0("temp <- cbind(",temp_nl_with_CI,")"))) # Create a data table for a plot of observed data and estimated parameters.
   if (ENG==1){
-    temp_main_label <- "Effective reproduction number"
-    #temp_main_label <- ""
+    temp_main_label <- "Effective reproduction number (R)"
   }else{
-    temp_main_label <- "実効再生産数"
+    temp_main_label <- "実効再生産数 (R)"
   }
   matplot(cbind(DEP, temp), type="l", col=c(1,2,2,2), lty=c(1,1,2,2), xaxt="n", xlab=time_label, ylab=R_label, main=temp_main_label,cex.main=cex_val,cex.axis=cex_val_axis,cex.lab=cex_val)
   axis(side=1, at=c(1,round(nrow(temp)*c(1:5)/5)), labels=conv_date_format(date_label0[c(1,round(nrow(temp)*c(1:5)/5))]),cex.axis=cex_val_axis)
@@ -780,7 +728,6 @@ for (i in 1:(length(temp_nl))){
     abline(v=SE0[j],lty=5)
   }  
   if (ENG==1){
-    #legend("topright",legend=c("Observed R", "Fitted R", "95% CI"), lty=c(1,1,2), col=c(1,3,2))
     legend("topright",legend=c("Observed R", "Fitted R"), lty=c(1,1), col=c(1,2),cex=cex_val)
   }else{
     legend("topright",legend=c("観測値", "平均値の事後平均", "95%予測区間"), lty=c(1,1,2), col=c(1,3,2))
@@ -791,7 +738,7 @@ for (i in 1:(length(temp_nl))){
 
 if (mdl_number>=16){
   temp_nl <- c("R_err","XF_hat_err")
-  temp_var_name_ENG <- c("Measurement error","Shocks to unobserved infectious events")
+  temp_var_name_ENG <- c("Measurement error","Shocks to residual infectious events")
   temp_var_name_JPN <- c("測定誤差","観察されない感染性活動のショック")
 }else{
   temp_nl <- c("R_err")
@@ -811,7 +758,6 @@ for (i in 1:(length(temp_nl))){
     temp_date_label <- date_label3 # From February 29, 2020.
     temp_SE <- SE3 
   }else{
-    #temp_nl[i] == "XF_hat_err"
     temp_date_label <- date_label2 # From February 16, 2020.
     temp_SE <- SE2
   }
@@ -836,7 +782,6 @@ for (i in 1:(length(temp_nl))){
     eval(parse(text=paste0("temp <- acf_mcmc(ms$",temp_nl[i],")")))
   }
   if (ENG==1){
-    #eval(parse(text=paste0("temp_main_label <- \"Box plot of auto correlations of ",temp_var_name_ENG[i],"\"")))
     temp_main_label <- temp_var_name_ENG[i]
   }else{
     eval(parse(text=paste0("temp_main_label <- \"",temp_var_name_JPN[i],"の自己相関関数の箱ひげ図\"")))
@@ -867,7 +812,6 @@ ef_d_X_areaplot <- matrix(NA,nr=length(diff(Fitted_R_pm)),nc=length(exp_var_name
 for (k in 1:temp_ind){
   eval(parse(text=paste0("temp_nl_with_CI1 <- paste0(\"ef_d_X_\", \"",k,"_pm\")"))) # Define character names for the posterior mean (_pm).
   eval(parse(text=paste0("temp <- cbind(",paste0(c(temp_nl_with_CI0, temp_nl_with_CI1),collapse=","),")"))) # Create a data table for a plot.
-  #eval(parse(text=paste0("matplot(temp, type=\"l\", col=c(1,2), lty=1, xaxt=\"n\", xlab=time_label, ylab=\"\", ylim=c(y_min,y_max), main=\"",exp_var_name[k],"\")")))
   matplot(temp, type="l", col=c(1,2), lty=1, xaxt="n", xlab=time_label, ylab="", ylim=c(y_min,y_max), main=exp_var_name[k])
   axis(side=1, at=c(1,round(nrow(temp)*c(1:5)/5)), labels=date_label1[c(1,round(nrow(temp)*c(1:5)/5))])
   abline(h=0,lty=3)
@@ -897,7 +841,6 @@ for (k in 3:temp_ind){
   }else{
     temp_main_label <- paste0(exp_var_name[k],"*絶対湿度ダミー")
   }
-  #eval(parse(text=paste0("matplot(temp, type=\"l\", col=c(1,2), lty=1, xaxt=\"n\", xlab=\"日次（破線は緊急事態宣言の開始と解除の日付）\", ylab=\"\", ylim=c(y_min,y_max), main=\"(",exp_var_name[k],"*絶対湿度)\")")))
   matplot(temp, type="l", col=c(1,2), lty=1, xaxt="n", xlab=time_label, ylab="", ylim=c(y_min,y_max), main=temp_main_label)
   axis(side=1, at=c(1,round(nrow(temp)*c(1:5)/5)), labels=date_label1[c(1,round(nrow(temp)*c(1:5)/5))])
   abline(h=0,lty=3)
@@ -922,7 +865,6 @@ for (k in 3:temp_ind){
   }else{
     temp_main_label <- paste0(exp_var_name[k],"*(1+絶対湿度ダミー)")
   }
-  #eval(parse(text=paste0("matplot(temp, type=\"l\", col=c(1,2), lty=1, xaxt=\"n\", xlab=\"日次（破線は緊急事態宣言の開始と解除の日付）\", ylab=\"\", ylim=c(y_min,y_max), main=\"",exp_var_name[k],"*(1+絶対湿度)の差分\")")))
   matplot(temp, type="l", col=c(1,2), lty=1, xaxt="n", xlab=time_label, ylab="", ylim=c(y_min,y_max), main=temp_main_label)
   axis(side=1, at=c(1,round(nrow(temp)*c(1:5)/5)), labels=date_label1[c(1,round(nrow(temp)*c(1:5)/5))])
   abline(h=0,lty=3)
@@ -949,7 +891,6 @@ if (sum(mdl_number == c(3,5,7))>0 || mdl_number >= 9){
   for (k in 1:n_SE_dummy){
     eval(parse(text=paste0("temp_nl_with_CI1 <- paste0(\"ef_d_X_\", \"",temp_ind*2-2+k,"_pm\")"))) # Define character names for the posterior mean (_pm).
     eval(parse(text=paste0("temp <- cbind(",paste0(c(temp_nl_with_CI0, temp_nl_with_CI1),collapse=","),")"))) # Create a data table for a plot.
-    #eval(parse(text=paste0("matplot(temp, type=\"l\", col=c(1,2), lty=1, xaxt=\"n\", xlab=\"日次（破線は緊急事態宣言の開始と解除の日付）\", ylab=\"\", ylim=c(y_min,y_max), main=\"",exp_var_name[temp_ind+k],"の差分\")")))
     matplot(temp, type="l", col=c(1,2), lty=1, xaxt="n", xlab=time_label, ylab="", ylim=c(y_min,y_max), main=exp_var_name[temp_ind+k])
     axis(side=1, at=c(1,round(nrow(temp)*c(1:5)/5)), labels=date_label1[c(1,round(nrow(temp)*c(1:5)/5))])
     abline(h=0,lty=3)
@@ -989,7 +930,6 @@ if (sum(mdl_number == c(3,5,7))>0 || mdl_number >= 9){
     }else{
       temp_main_label <- paste0(exp_var_name[k],"の全効果")
     }
-    #eval(parse(text=paste0("matplot(temp, type=\"l\", col=c(1,2), lty=1, xaxt=\"n\", xlab=\"日次（破線は緊急事態宣言の開始と解除の日付）\", ylab=\"\", ylim=c(y_min,y_max), main=\"",exp_var_name[k],"の全効果の差分\")")))
     matplot(temp, type="l", col=c(1,2), lty=1, xaxt="n", xlab=time_label, ylab="", ylim=c(y_min,y_max), main=temp_main_label)
     axis(side=1, at=c(1,round(nrow(temp)*c(1:5)/5)), labels=date_label1[c(1,round(nrow(temp)*c(1:5)/5))])
     abline(h=0,lty=3)
