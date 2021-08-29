@@ -27,6 +27,13 @@ conv_list <- function(m){
   return(y)
 }
 
+############# Nishimura's function to write barplot labels in tategaki.
+tategaki = function(x) {
+  x = chartr("ー", "丨", x) # 長音符の処理
+  x = strsplit(split="", x)
+  sapply(x, paste, collapse="\n")
+}
+
 ######## Convert relative humidity into absolute humidity. ###########
 
 calc_abs_hum <- function(temper_var,hum_var){
@@ -156,26 +163,27 @@ plot_ts_ccf <- function(x,x_name,y,y_name,date_label,h_val,SE){
 ###### Extract the postmean and the percentile values from a mcmc sample. #########
 
 Extract_mean_ptl<- function(x, ptl){
-  # x: the mcmc sample of the variable.
+  # x: the mcmc sample of the variable. Samples are in rows; variables (including the time-varying values of a variable) are in columns.
   # ptl: c(low percentile, high percentile)
   
   if (length(dim(x))>1){
     # Compute the mean of a time series.
     x_postmean <- apply(x,2,mean)
     
-    # Compute the quartiles of a time series.
-    x_q <- apply(x,2,quantile, ptl)
+    # Compute the percentiles of a time series.
+    x_q <- apply(x, 2, quantile, ptl)
     x_low <- x_q[1,]
     x_high <- x_q[2,]
   }else{
     # Compute the mean of a scaler parameter.
     x_postmean <- mean(x)
     
-    # Compute the quartiles of a scaler parameter.
-    x_q <- quantile(x,ptl)
+    # Compute the percentiles of a scaler parameter.
+    x_q <- quantile(x, ptl)
     x_low <- x_q[1]
     x_high <- x_q[2]
   }
+
   return(list(x_postmean,x_low,x_high))
 }
 
@@ -248,7 +256,7 @@ acf_mcmc <- function(x, lag.max=NULL){
 
 ############## Compute reproduction numbers for a set of mcmc samples ##################
 
-R_simu <- function(ms_R, H_expvals, M_trans, H_expvals_base=NULL, M_trans_base=NULL, W_abs_hum, dist_incub, D_NY, D_SE1=NULL, D_SE2=NULL, D_pre_SE1=NULL){
+R_simu <- function(ms_R, H_expvals, M_trans, H_expvals_base=NULL, M_trans_base=NULL, W_abs_hum, dist_incub, D_NY, D_SE1=NULL, D_SE2=NULL, D_pre_SE1=NULL, EXP_L452R=NULL, EXP_MV_1st_VP=NULL, EXP_MV_2nd_VP=NULL, mdl_number=0){
   
   # ms_R: a mcmc sample after the burnin period created by a stan file. 
   # H_expvals: hypothetical values of real household expenditures. Rows: items; Columns: dates.
@@ -259,8 +267,12 @@ R_simu <- function(ms_R, H_expvals, M_trans, H_expvals_base=NULL, M_trans_base=N
   # D_SE1: Dummy for the first state of emergency.
   # D_SE2: Dummy for the second state of emergency.
   # D_pre_SE1: Dummy for the period before the first state of emergency.
+  # EXP_L452R: the delta-variant share of new cases.
+  # EXP_MV_1st_VP: 14-day backward moving average of the first-vaccination-only share of population.
+  # EXP_MV_2nd_VP: 7-day backward moving average of the twice-vaccinated share of population.
   # H_expvals_base: Baseline series of H_expvals for comparison
   # M_trans_base: Baseline series of H_expvals for comparison
+  # mdl_number: Model number. Relevant for model 20 or above.
   
   # Set the number of the mcmc samples after burnins. The first element of ms_R is a vector of mcmc samples.
   n_mcmc <- length(ms_R[[1]])
@@ -276,6 +288,11 @@ R_simu <- function(ms_R, H_expvals, M_trans, H_expvals_base=NULL, M_trans_base=N
 
   # Initialize the matrix of baseline explanatory variables for comparison.
   EXPVAR_base <- matrix(NA, nr = 2 + (n_hes+1)*2, nc = nobs-13)
+  
+  # Initialize the matrix of explanatory variables related to L452R and vaccinations.
+  if (is.null(EXP_L452R)!=1){
+    EXPVAR_L452R_VP <- matrix(NA, nr = 5, nc = nobs-13)
+  }
   
   # Construct a matrix of explanatory variables, except dummy variables for the states of emergency.
   # Incubation periods are distributed between 1 day to 14 days. 
@@ -335,6 +352,14 @@ R_simu <- function(ms_R, H_expvals, M_trans, H_expvals_base=NULL, M_trans_base=N
       EXPVAR_base[2+n_hes*2+1 + 1,t] = M_trans_base[t:(t+13)] %*% (dist_incub * W_abs_hum[t:(t+13)])
     }
     
+    # Construct a matrix of explanatory variables related to L452R and vaccinations.
+    if (mdl_number==21){
+      EXPVAR_L452R_VP[1,t] <- EXP_L452R[t:(t+13)] %*% dist_incub
+      EXPVAR_L452R_VP[2,t] <- (EXP_MV_1st_VP[t:(t+13)] * EXP_L452R[t:(t+13)]) %*% dist_incub
+      EXPVAR_L452R_VP[3,t] <- (EXP_MV_2nd_VP[t:(t+13)] * EXP_L452R[t:(t+13)]) %*% dist_incub
+      EXPVAR_L452R_VP[4,t] <- (EXP_MV_1st_VP[t:(t+13)] * (1-EXP_L452R[t:(t+13)])) %*% dist_incub
+      EXPVAR_L452R_VP[5,t] <- (EXP_MV_2nd_VP[t:(t+13)] * (1-EXP_L452R[t:(t+13)])) %*% dist_incub
+    }
   }
   
 
@@ -358,6 +383,19 @@ R_simu <- function(ms_R, H_expvals, M_trans, H_expvals_base=NULL, M_trans_base=N
     scl_AH_SE2 <- ms_R$scl_AH_SE2[i,]
     scl_AH_pre_SE1 <- ms_R$scl_AH_pre_SE1[i,]
     
+    if (is.null(EXP_L452R)!=1){
+      # Extract coefficients related to L452R and vaccination from a mcmc sample.
+      coef_L452R <- ms_R$coef_L452R[i]
+      coef_1st_VP_L452R <- ms_R$coef_1st_VP_L452R[i]
+      coef_2nd_VP_L452R <- ms_R$coef_2nd_VP_L452R[i]
+      coef_1st_VP_orgn <- ms_R$coef_1st_VP_orgn[i]
+      coef_2nd_VP_orgn <- ms_R$coef_2nd_VP_orgn[i]
+      
+      if(mdl_number == 20){
+        coef_total_L452R_VP <- ms_R$coef_total_L452R_VP[i]
+      }
+    }
+    
     # mean_R: The mean of the normal distribution of R in each period.
     # Initialize a vector for mean_R.
     mean_R <- rep(NA, nobs-13)
@@ -371,6 +409,16 @@ R_simu <- function(ms_R, H_expvals, M_trans, H_expvals_base=NULL, M_trans_base=N
         + t(scl_AH_SE1) %*% EXPVAR[2 + (n_hes+1)*2 + 3 + 1:(n_hes+1),t] +
         + t(scl_AH_SE2) %*% EXPVAR[2 + (n_hes+1)*2 + 3 + (n_hes+1) + 1:(n_hes+1),t] + 
         + t(scl_AH_pre_SE1) %*% EXPVAR[2 + (n_hes+1)*2 + 3 + (n_hes+1)*2 + 1:(n_hes+1),t]
+      
+      if (mdl_number==20){
+        # Add the effect of L452R and vaccination.
+        mean_R[t] <- mean_R[t] + sum(dist_incub * coef_total_L452R_VP * log(coef_L452R * (1 - coef_1st_VP_L452R * EXP_MV_1st_VP[t:(t+13)] - coef_2nd_VP_L452R * EXP_MV_2nd_VP[t:(t+13)]) * EXP_L452R[t:(t+13)] + (1 - coef_1st_VP_orgn * EXP_MV_1st_VP[t:(t+13)] - coef_2nd_VP_orgn * EXP_MV_2nd_VP[t:(t+13)]) * (1-EXP_L452R[t:(t+13)])))
+      }
+
+      if (mdl_number==21){
+        # Add the effect of L452R and vaccination.
+        mean_R[t] <- mean_R[t] + coef_L452R * EXPVAR_L452R_VP[1,t] - coef_1st_VP_L452R * EXPVAR_L452R_VP[2,t] - coef_2nd_VP_L452R * EXPVAR_L452R_VP[3,t] - coef_1st_VP_orgn * EXPVAR_L452R_VP[4,t] - coef_2nd_VP_orgn * EXPVAR_L452R_VP[5,t]
+      }
 
       if (t>6){
         R[i, t-6] <- sum(mean_R[(t-6):t]) # R is the ratio between the numbers of infections one day after today and a week before, raised to the power of 5/7.
@@ -378,7 +426,6 @@ R_simu <- function(ms_R, H_expvals, M_trans, H_expvals_base=NULL, M_trans_base=N
     }
   }
 
-  
   
   # Compute posterior means of coefficients.
   
@@ -388,7 +435,7 @@ R_simu <- function(ms_R, H_expvals, M_trans, H_expvals_base=NULL, M_trans_base=N
   coef_SE1_pm <- mean(ms_R$coef_SE1)
   coef_SE2_pm <- mean(ms_R$coef_SE2)
   coef_pre_SE1_pm <- mean(ms_R$coef_pre_SE1)
-
+  
   scl_pm <- apply(ms_R$scl, 2, mean)
   scl_AH_pm <- apply(ms_R$scl_AH, 2, mean)
   scl_AH_SE1_pm <- apply(ms_R$scl_AH_SE1, 2, mean)
@@ -398,10 +445,36 @@ R_simu <- function(ms_R, H_expvals, M_trans, H_expvals_base=NULL, M_trans_base=N
   if (is.null(H_expvals_base)){
     # If there is no alternative explanatory variable, record the level contribution from each explanatory variable.
     
-    # Initialize a matrix to record the level effects of explanatory variables on R evaluated by posterior mean coefficients.
-    comp_effect <- matrix(NA, nr=2+(n_hes+1)*3, nc=nobs-13-6)
-    
-    # Record the difference in the posterior mean of R between the two sets of explanatory variables.
+    if (is.null(EXP_L452R)){
+      # Initialize a matrix to record the level effects of explanatory variables on R evaluated by posterior mean coefficients.
+      comp_effect <- matrix(NA, nr=2+(n_hes+1)*3, nc=nobs-13-6)
+    }else{
+      
+      # Compute posterior means of additional coefficients.
+      
+      coef_L452R_pm <- mean(ms_R$coef_L452R)
+      coef_1st_VP_L452R_pm <- mean(ms_R$coef_1st_VP_L452R)
+      coef_2nd_VP_L452R_pm <- mean(ms_R$coef_2nd_VP_L452R)
+      coef_1st_VP_orgn_pm <- mean(ms_R$coef_1st_VP_orgn)
+      coef_2nd_VP_orgn_pm <- mean(ms_R$coef_2nd_VP_orgn)
+
+      if (mdl_number==20){
+        # Initialize a matrix to record the level effects of explanatory variables on R evaluated by posterior mean coefficients.
+        comp_effect <- matrix(NA, nr=2+(n_hes+1)*3+1, nc=nobs-13-6)
+        # Initialize a vector to record the daily effects of explanatory variables related to L452R and vaccinations on R evaluated by posterior mean coefficients.
+        daily_comp_effect <- rep(NA, nobs-13)
+        
+        # Extract the level coefficient for the log of the net effect of L452R and vaccinations.
+        coef_total_L452R_VP_pm <- mean(ms_R$coef_total_L452R_VP)
+        
+      }else if (mdl_number==21){
+        # Initialize a matrix to record the level effects of explanatory variables on R evaluated by posterior mean coefficients.
+        comp_effect <- matrix(NA, nr=2+(n_hes+1)*3+3, nc=nobs-13-6)
+      }
+      
+    }
+      
+    # Record the level contribution from each explanatory variable.
     for (t in 7:(nobs-13)){
       
       comp_effect[1,t-6] <- sum(gama_pm + coef_NY_pm * EXPVAR[1,(t-6):t] + coef_SE1_pm * EXPVAR[2 + (n_hes+1)*2 + 1,(t-6):t] + coef_SE2_pm * EXPVAR[2 + (n_hes+1)*2 + 2,(t-6):t] +  coef_pre_SE1_pm * EXPVAR[2 + (n_hes+1)*2 + 3,(t-6):t])
@@ -411,9 +484,30 @@ R_simu <- function(ms_R, H_expvals, M_trans, H_expvals_base=NULL, M_trans_base=N
       comp_effect[2+(n_hes+1)*2+1:(n_hes+1), t-6] <- rowSums((t(rep(1,7)) %x% scl_AH_SE1) * EXPVAR[2 + (n_hes+1)*2 + 3 + 1:(n_hes+1),(t-6):t] +
                                                                + (t(rep(1,7)) %x% scl_AH_SE2) * EXPVAR[2 + (n_hes+1)*2 + 3 + (n_hes+1) + 1:(n_hes+1),(t-6):t] +
                                                                + (t(rep(1,7)) %x% scl_AH_pre_SE1) * EXPVAR[2 + (n_hes+1)*2 + 3 + (n_hes+1)*2 + 1:(n_hes+1),(t-6):t])
-    }
-    
+      if (mdl_number==20){
+        
+        if (t==7){
+          # Compute the daily effects of explanatory variables related to L452R and vaccinations for the first six days of the sample period.
+          for (s in 1:7){
+            daily_comp_effect[s] <- sum(dist_incub * coef_total_L452R_VP_pm * log(coef_L452R_pm * (1 - coef_1st_VP_L452R_pm * EXP_MV_1st_VP[s:(s+13)] - coef_2nd_VP_L452R_pm * EXP_MV_2nd_VP[s:(s+13)]) * EXP_L452R[s:(s+13)] + (1 - coef_1st_VP_orgn_pm * EXP_MV_1st_VP[s:(s+13)] - coef_2nd_VP_orgn_pm * EXP_MV_2nd_VP[s:(s+13)]) * (1-EXP_L452R[s:(s+13)])))
+          }
+        }else{
+          # Compute the daily effects of explanatory variables related to L452R and vaccinations for each day.
+          daily_comp_effect[t] <- sum(dist_incub * coef_total_L452R_VP_pm * log(coef_L452R_pm * (1 - coef_1st_VP_L452R_pm * EXP_MV_1st_VP[t:(t+13)] - coef_2nd_VP_L452R_pm * EXP_MV_2nd_VP[t:(t+13)]) * EXP_L452R[t:(t+13)] + (1 - coef_1st_VP_orgn_pm * EXP_MV_1st_VP[t:(t+13)] - coef_2nd_VP_orgn_pm * EXP_MV_2nd_VP[t:(t+13)]) * (1-EXP_L452R[t:(t+13)])))
+        }
+        
+        # Add the effect of L452R and vaccination.
+        comp_effect[2+(n_hes+1)*3+1,t-6] <- sum(daily_comp_effect[(t-6):t])
+        
+      } else if (mdl_number==21){
+        
+        # Add the effect of L452R and vaccination.
+        comp_effect[2+(n_hes+1)*3+1,t-6] <- sum(coef_L452R_pm * EXPVAR_L452R_VP[1,(t-6):t])
+        comp_effect[2+(n_hes+1)*3+2,t-6] <- - sum(coef_1st_VP_L452R_pm * EXPVAR_L452R_VP[2,(t-6):t] + coef_1st_VP_orgn_pm * EXPVAR_L452R_VP[4,(t-6):t])
+        comp_effect[2+(n_hes+1)*3+3,t-6] <- - sum(coef_2nd_VP_L452R_pm * EXPVAR_L452R_VP[3,(t-6):t] + coef_2nd_VP_orgn_pm * EXPVAR_L452R_VP[5,(t-6):t])
+      }
       
+    }
   }else{
     # Initialize a matrix to record the difference in the posterior mean of R between the two sets of explanatory variables.
     comp_effect <- matrix(NA, nr=n_hes+1, nc=nobs-13-6)
